@@ -9,7 +9,7 @@ export const useTextToSpeech = () => {
       await Speech.stop();
 
       // Speak the text with English voice settings
-      await Speech.speak(text, {
+      Speech.speak(text, {
         language: "en-US",
         pitch: 1.0,
         rate: 0.85, // Slightly slower for learning

@@ -7,7 +7,6 @@ import {
 } from "expo-audio";
 import { useCallback, useEffect, useState } from "react";
 import { Alert } from "react-native";
-// import NetInfo from '@react-native-community/netinfo';
 import {
   OfflineSTTResult,
   OfflineSTTService,

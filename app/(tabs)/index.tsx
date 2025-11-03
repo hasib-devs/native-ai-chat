@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Alert, TouchableOpacity, View, useColorScheme } from "react-native";
 import {
   Bubble,
   GiftedChat,
@@ -20,14 +20,12 @@ import { TypingIndicator } from "@/components/TypingIndicator";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { VoiceSettingsModal } from "@/components/VoiceSettingsModal";
 import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useConversationPersistence } from "@/hooks/useConversationPersistence";
 import {
   AudioAnalysisResult,
   useEnhancedSpeechToText,
 } from "@/hooks/useEnhancedSpeechToText";
 import { useOfflineSpeechToText } from "@/hooks/useOfflineSpeechToText";
-import { useSpeechToText } from "@/hooks/useSpeechToText";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import {
   AIResponseContext,
@@ -35,6 +33,7 @@ import {
   getEnhancedAIResponse,
 } from "@/utils/aiResponses";
 import { ConversationSession } from "@/utils/conversationStorage";
+import { styles } from "./styles";
 
 export default function ChatScreen() {
   const [messages, setMessages] = useState<IMessage[]>([]);
@@ -61,7 +60,6 @@ export default function ChatScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
 
-  const { isListening, startListening, stopListening } = useSpeechToText();
   const {
     isListening: isEnhancedListening,
     isAnalyzing,
@@ -214,33 +212,33 @@ export default function ChatScreen() {
   );
 
   // Handle voice input
-  const handleStartListening = useCallback(async () => {
-    try {
-      await startListening();
-    } catch (error) {
-      Alert.alert("Error", "Failed to start voice recording");
-    }
-  }, [startListening]);
+  // const handleStartListening = useCallback(async () => {
+  //   try {
+  //     await startListening();
+  //   } catch (error) {
+  //     Alert.alert("Error", "Failed to start voice recording");
+  //   }
+  // }, [startListening]);
 
-  const handleStopListening = useCallback(async () => {
-    try {
-      const transcribedText = await stopListening();
-      if (transcribedText.trim()) {
-        const userMessage: IMessage = {
-          _id: Math.random().toString(),
-          text: transcribedText,
-          createdAt: new Date(),
-          user: {
-            _id: "user",
-            name: "You",
-          },
-        };
-        onSend([userMessage]);
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to process voice input");
-    }
-  }, [stopListening, onSend]);
+  // const handleStopListening = useCallback(async () => {
+  //   try {
+  //     const transcribedText = await stopListening();
+  //     if (transcribedText.trim()) {
+  //       const userMessage: IMessage = {
+  //         _id: Math.random().toString(),
+  //         text: transcribedText,
+  //         createdAt: new Date(),
+  //         user: {
+  //           _id: "user",
+  //           name: "You",
+  //         },
+  //       };
+  //       onSend([userMessage]);
+  //     }
+  //   } catch (error) {
+  //     Alert.alert("Error", "Failed to process voice input");
+  //   }
+  // }, [stopListening, onSend]);
 
   // Handle enhanced voice input with pronunciation analysis
   const handleEnhancedVoiceInput =
@@ -263,7 +261,7 @@ export default function ChatScreen() {
         }
 
         return result;
-      } catch (error) {
+      } catch {
         Alert.alert("Error", "Failed to analyze pronunciation");
         return {
           transcription: "",
@@ -286,27 +284,27 @@ export default function ChatScreen() {
   );
 
   // Handle offline voice input
-  const handleOfflineVoiceInput = useCallback(async () => {
-    try {
-      const result = await stopOfflineListening();
+  // const handleOfflineVoiceInput = useCallback(async () => {
+  //   try {
+  //     const result = await stopOfflineListening();
 
-      if (result && result.transcription.trim()) {
-        const userMessage: IMessage = {
-          _id: Math.random().toString(),
-          text: result.transcription,
-          createdAt: new Date(),
-          user: {
-            _id: "user",
-            name: "You",
-          },
-        };
-        onSend([userMessage]);
-      }
-    } catch (err) {
-      console.error("Failed to process offline voice input:", err);
-      Alert.alert("Error", "Failed to process offline voice input");
-    }
-  }, [stopOfflineListening, onSend]);
+  //     if (result && result.transcription.trim()) {
+  //       const userMessage: IMessage = {
+  //         _id: Math.random().toString(),
+  //         text: result.transcription,
+  //         createdAt: new Date(),
+  //         user: {
+  //           _id: "user",
+  //           name: "You",
+  //         },
+  //       };
+  //       onSend([userMessage]);
+  //     }
+  //   } catch (err) {
+  //     console.error("Failed to process offline voice input:", err);
+  //     Alert.alert("Error", "Failed to process offline voice input");
+  //   }
+  // }, [stopOfflineListening, onSend]);
 
   // Handle voice settings update
   const handleUpdateVoiceSettings = useCallback(
@@ -616,112 +614,3 @@ export default function ChatScreen() {
     </ThemedView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  headerTitle: {
-    flex: 1,
-  },
-  headerButtons: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  progressButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  historyButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  newChatButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 4,
-  },
-  newChatText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    opacity: 0.6,
-    fontStyle: "italic",
-  },
-  inputToolbarContainer: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    paddingHorizontal: 10,
-    paddingBottom: 10,
-  },
-  inputToolbar: {
-    flex: 1,
-    marginRight: 10,
-    borderTopWidth: 1,
-    borderRadius: 25,
-    paddingTop: 8,
-  },
-  micButtonContainer: {
-    marginBottom: 8,
-  },
-  sendButton: {
-    marginBottom: 8,
-    marginRight: 8,
-  },
-  statusBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: "rgba(0, 0, 0, 0.05)",
-  },
-  connectionStatus: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  statusText: {
-    fontSize: 12,
-    opacity: 0.8,
-  },
-  offlineStatus: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  strategyText: {
-    fontSize: 10,
-    opacity: 0.6,
-    flex: 1,
-    textAlign: "right",
-  },
-});
