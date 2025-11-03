@@ -1,98 +1,240 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useState } from "react";
+import { Alert, StyleSheet, View } from "react-native";
+import {
+  Bubble,
+  GiftedChat,
+  IMessage,
+  InputToolbar,
+  Send,
+} from "react-native-gifted-chat";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { MicButton } from "@/components/MicButton";
+import { ThemedView } from "@/components/themed-view";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useSpeechToText } from "@/hooks/useSpeechToText";
+import { useTextToSpeech } from "@/hooks/useTextToSpeech";
+import { ChatMessage, getAIResponse } from "@/utils/aiResponses";
 
-export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
+export default function ChatScreen() {
+  const [messages, setMessages] = useState<IMessage[]>([]);
+  const [conversationHistory, setConversationHistory] = useState<ChatMessage[]>(
+    []
+  );
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? "light"];
+
+  const { isListening, startListening, stopListening } = useSpeechToText();
+  const { speak } = useTextToSpeech();
+
+  // Initialize chat with welcome message
+  useEffect(() => {
+    const welcomeMessage: IMessage = {
+      _id: Math.random().toString(),
+      text: "Hello! I'm your English practice buddy. You can type or speak to me - I'm here to help you practice conversational English! 😊",
+      createdAt: new Date(),
+      user: {
+        _id: "ai",
+        name: "English Tutor",
+        avatar: "🤖",
+      },
+    };
+    setMessages([welcomeMessage]);
+
+    // Speak welcome message
+    speak(welcomeMessage.text);
+  }, [speak]);
+
+  // Handle sending new messages
+  const onSend = useCallback(
+    (newMessages: IMessage[] = []) => {
+      const userMessage = newMessages[0];
+
+      // Add user message to conversation
+      setMessages((previousMessages) =>
+        GiftedChat.append(previousMessages, newMessages)
+      );
+
+      // Update conversation history
+      const userChatMessage: ChatMessage = {
+        id: userMessage._id.toString(),
+        text: userMessage.text,
+        sender: "user",
+        timestamp: userMessage.createdAt as Date,
+      };
+
+      setConversationHistory((prev) => [...prev, userChatMessage]);
+
+      // Generate AI response
+      setTimeout(() => {
+        const aiResponseText = getAIResponse(
+          userMessage.text,
+          conversationHistory
+        );
+
+        const aiMessage: IMessage = {
+          _id: Math.random().toString(),
+          text: aiResponseText,
+          createdAt: new Date(),
+          user: {
+            _id: "ai",
+            name: "English Tutor",
+            avatar: "🤖",
+          },
+        };
+
+        setMessages((previousMessages) =>
+          GiftedChat.append(previousMessages, [aiMessage])
+        );
+
+        // Update conversation history
+        const aiChatMessage: ChatMessage = {
+          id: aiMessage._id.toString(),
+          text: aiResponseText,
+          sender: "ai",
+          timestamp: aiMessage.createdAt as Date,
+        };
+
+        setConversationHistory((prev) => [...prev, aiChatMessage]);
+
+        // Speak AI response
+        speak(aiResponseText);
+      }, 1000); // Small delay to simulate thinking
+    },
+    [conversationHistory, speak]
+  );
+
+  // Handle voice input
+  const handleStartListening = useCallback(async () => {
+    try {
+      await startListening();
+    } catch (error) {
+      Alert.alert("Error", "Failed to start voice recording");
+    }
+  }, [startListening]);
+
+  const handleStopListening = useCallback(async () => {
+    try {
+      const transcribedText = await stopListening();
+      if (transcribedText.trim()) {
+        const userMessage: IMessage = {
+          _id: Math.random().toString(),
+          text: transcribedText,
+          createdAt: new Date(),
+          user: {
+            _id: "user",
+            name: "You",
+          },
+        };
+        onSend([userMessage]);
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to process voice input");
+    }
+  }, [stopListening, onSend]);
+
+  // Custom bubble styling
+  const renderBubble = (props: any) => (
+    <Bubble
+      {...props}
+      wrapperStyle={{
+        right: {
+          backgroundColor: colors.tint,
+        },
+        left: {
+          backgroundColor: colorScheme === "dark" ? "#333" : "#f0f0f0",
+        },
+      }}
+      textStyle={{
+        right: {
+          color: "white",
+        },
+        left: {
+          color: colors.text,
+        },
+      }}
+    />
+  );
+
+  // Custom input toolbar with microphone button
+  const renderInputToolbar = (props: any) => (
+    <View style={styles.inputToolbarContainer}>
+      <InputToolbar
+        {...props}
+        containerStyle={[
+          styles.inputToolbar,
+          {
+            backgroundColor: colors.background,
+            borderTopColor: colorScheme === "dark" ? "#333" : "#e0e0e0",
+          },
+        ]}
+        primaryStyle={{ alignItems: "center" }}
+      />
+      <View style={styles.micButtonContainer}>
+        <MicButton
+          isListening={isListening}
+          onStartListening={handleStartListening}
+          onStopListening={handleStopListening}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+      </View>
+    </View>
+  );
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  // Custom send button
+  const renderSend = (props: any) => (
+    <Send {...props}>
+      <View style={styles.sendButton}>
+        <IconSymbol name="arrow.up.circle.fill" size={32} color={colors.tint} />
+      </View>
+    </Send>
+  );
+
+  return (
+    <ThemedView style={styles.container}>
+      <GiftedChat
+        messages={messages}
+        onSend={onSend}
+        user={{
+          _id: "user",
+          name: "You",
+        }}
+        placeholder="Type your message or use the microphone..."
+        showAvatarForEveryMessage={true}
+        renderBubble={renderBubble}
+        renderInputToolbar={renderInputToolbar}
+        renderSend={renderSend}
+        scrollToBottom
+        scrollToBottomComponent={() => (
+          <IconSymbol name="arrow.down.circle" size={24} color={colors.tint} />
+        )}
+      />
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
   },
-  stepContainer: {
-    gap: 8,
+  inputToolbarContainer: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+  },
+  inputToolbar: {
+    flex: 1,
+    marginRight: 10,
+    borderTopWidth: 1,
+    borderRadius: 25,
+    paddingTop: 8,
+  },
+  micButtonContainer: {
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  sendButton: {
+    marginBottom: 8,
+    marginRight: 8,
   },
 });

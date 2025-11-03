@@ -1,50 +1,120 @@
-# Welcome to your Expo app 👋
+# English Chat Practice App 🗣️
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A React Native (Expo) mobile application designed to help users practice speaking English with an AI-powered conversation partner. The app provides a friendly, conversational, and encouraging environment that simulates a real English tutor.
 
-## Get started
+## Features
 
-1. Install dependencies
+- **Chat Interface**: Beautiful chat UI using `react-native-gifted-chat`
+- **Voice Input (STT)**: Capture user speech for natural conversation practice
+- **Voice Output (TTS)**: AI responses spoken aloud for pronunciation learning
+- **AI Conversation Partner**: Encouraging and context-aware responses
+- **Conversation Memory**: Maintains short-term context for natural flow
 
+## Current Implementation Status
+
+### ✅ Completed
+- [x] Basic project structure and boilerplate cleanup
+- [x] Chat UI foundation with react-native-gifted-chat
+- [x] Text-to-Speech (TTS) integration with expo-speech
+- [x] Speech-to-Text (STT) foundation with expo-av
+- [x] AI response system with context awareness
+- [x] Microphone button component with visual feedback
+- [x] Dark/light theme support
+- [x] Conversation flow and message handling
+
+### 🚧 TODO (Future Enhancements)
+- [ ] Integrate Whisper.cpp for offline STT
+- [ ] Add local AI model (Llama.cpp or Mistral) integration
+- [ ] Implement conversation persistence with AsyncStorage
+- [ ] Add pronunciation feedback and scoring
+- [ ] Include vocabulary and grammar practice modes
+- [ ] Add progress tracking and learning analytics
+
+## Getting Started
+
+1. **Install Dependencies**
    ```bash
-   npm install
+   pnpm install
    ```
 
-2. Start the app
-
+2. **Start Development Server**
    ```bash
-   npx expo start
+   pnpm start
    ```
 
-In the output, you'll find options to open the app in a
+3. **Run on Device/Simulator**
+   ```bash
+   # iOS
+   pnpm ios
+   
+   # Android  
+   pnpm android
+   
+   # Web
+   pnpm web
+   ```
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Project Structure
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+```
+app/
+├── (tabs)/
+│   ├── _layout.tsx          # Tab navigation layout
+│   └── index.tsx            # Main chat screen
+└── _layout.tsx              # Root layout
 
-## Get a fresh project
+components/
+├── MicButton.tsx            # Voice input button
+├── themed-text.tsx          # Theme-aware text component
+├── themed-view.tsx          # Theme-aware view component
+└── ui/                      # UI components
 
-When you're ready, run:
+hooks/
+├── useSpeechToText.ts       # Speech-to-text hook
+├── useTextToSpeech.ts       # Text-to-speech hook
+└── use-color-scheme.ts      # Theme detection hook
 
-```bash
-npm run reset-project
+utils/
+└── aiResponses.ts           # AI response generation
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Key Components
 
-## Learn more
+### Chat Interface
+- Built with `react-native-gifted-chat` for professional chat experience
+- Custom styling for light/dark themes
+- Avatar support and message bubbles
+- Smooth scrolling and animation
 
-To learn more about developing your project with Expo, look at the following resources:
+### Voice Features  
+- **Speech-to-Text**: Uses expo-av for audio recording (placeholder for Whisper.cpp)
+- **Text-to-Speech**: Uses expo-speech for natural AI voice responses
+- **Microphone Button**: Visual feedback during recording
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### AI Conversation
+- Context-aware responses based on conversation topics
+- Encouraging and educational tone suitable for language learning
+- Maintains conversation history for natural flow
+- Topic detection for weather, food, hobbies, etc.
 
-## Join the community
+## Technology Stack
 
-Join our community of developers creating universal apps.
+- **React Native** (0.81.5) with Expo SDK 54
+- **Expo Router** for navigation
+- **react-native-gifted-chat** for chat UI
+- **expo-speech** for text-to-speech
+- **expo-av** for audio recording
+- **TypeScript** for type safety
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Contributing
+
+This app follows the coding guidelines in `.github/copilot-instructions.md`:
+
+- Use functional components with React Hooks
+- Keep code modular and well-commented
+- TypeScript preferred for type safety
+- Mobile-friendly and maintainable code structure
+
+## License
+
+Private project for English language learning practice.
