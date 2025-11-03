@@ -13,16 +13,18 @@ A React Native (Expo) mobile application designed to help users practice speakin
 ## Current Implementation Status
 
 ### ✅ Completed
+
 - [x] Basic project structure and boilerplate cleanup
 - [x] Chat UI foundation with react-native-gifted-chat
 - [x] Text-to-Speech (TTS) integration with expo-speech
-- [x] Speech-to-Text (STT) foundation with expo-av
+- [x] Speech-to-Text (STT) foundation with expo-audio
 - [x] AI response system with context awareness
 - [x] Microphone button component with visual feedback
 - [x] Dark/light theme support
 - [x] Conversation flow and message handling
 
 ### 🚧 TODO (Future Enhancements)
+
 - [ ] Integrate Whisper.cpp for offline STT
 - [ ] Add local AI model (Llama.cpp or Mistral) integration
 - [ ] Implement conversation persistence with AsyncStorage
@@ -33,23 +35,26 @@ A React Native (Expo) mobile application designed to help users practice speakin
 ## Getting Started
 
 1. **Install Dependencies**
+
    ```bash
    pnpm install
    ```
 
 2. **Start Development Server**
+
    ```bash
    pnpm start
    ```
 
 3. **Run on Device/Simulator**
+
    ```bash
    # iOS
    pnpm ios
-   
-   # Android  
+
+   # Android
    pnpm android
-   
+
    # Web
    pnpm web
    ```
@@ -81,17 +86,20 @@ utils/
 ## Key Components
 
 ### Chat Interface
+
 - Built with `react-native-gifted-chat` for professional chat experience
 - Custom styling for light/dark themes
 - Avatar support and message bubbles
 - Smooth scrolling and animation
 
-### Voice Features  
-- **Speech-to-Text**: Uses expo-av for audio recording (placeholder for Whisper.cpp)
+### Voice Features
+
+- **Speech-to-Text**: Uses expo-audio for audio recording (placeholder for Whisper.cpp)
 - **Text-to-Speech**: Uses expo-speech for natural AI voice responses
 - **Microphone Button**: Visual feedback during recording
 
 ### AI Conversation
+
 - Context-aware responses based on conversation topics
 - Encouraging and educational tone suitable for language learning
 - Maintains conversation history for natural flow
@@ -103,7 +111,7 @@ utils/
 - **Expo Router** for navigation
 - **react-native-gifted-chat** for chat UI
 - **expo-speech** for text-to-speech
-- **expo-av** for audio recording
+- **expo-audio** for audio recording
 - **TypeScript** for type safety
 
 ## Contributing

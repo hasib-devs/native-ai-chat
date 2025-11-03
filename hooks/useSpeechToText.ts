@@ -1,16 +1,23 @@
-import { Audio } from "expo-av";
+import {
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+  useAudioRecorderState,
+} from "expo-audio";
 import { useCallback, useState } from "react";
 import { Alert } from "react-native";
 
 // TODO: Replace with actual Whisper.cpp integration
 export const useSpeechToText = () => {
   const [isListening, setIsListening] = useState(false);
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorderState = useAudioRecorderState(audioRecorder);
 
   const startListening = useCallback(async () => {
     try {
       // Request permissions
-      const permission = await Audio.requestPermissionsAsync();
+      const permission = await requestRecordingPermissionsAsync();
       if (!permission.granted) {
         Alert.alert(
           "Permission required",
@@ -20,16 +27,14 @@ export const useSpeechToText = () => {
       }
 
       // Configure audio mode
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
       });
 
       setIsListening(true);
-      const { recording: newRecording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      setRecording(newRecording);
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
     } catch (error) {
       console.error("Failed to start recording", error);
       Alert.alert("Error", "Failed to start recording");
@@ -38,15 +43,14 @@ export const useSpeechToText = () => {
   }, []);
 
   const stopListening = useCallback(async (): Promise<string> => {
-    if (!recording) {
+    if (!recorderState.isRecording) {
       return "";
     }
 
     try {
       setIsListening(false);
-      await recording.stopAndUnloadAsync();
-      // const uri = recording.getURI(); // Will be used later for Whisper.cpp integration
-      setRecording(null);
+      await audioRecorder.stop();
+      // const uri = audioRecorder.uri; // Will be used later for Whisper.cpp integration
 
       // TODO: Send audio to Whisper.cpp for transcription
       // For now, return a placeholder text
@@ -66,7 +70,7 @@ export const useSpeechToText = () => {
       Alert.alert("Error", "Failed to process recording");
       return "";
     }
-  }, [recording]);
+  }, []);
 
   return {
     isListening,

@@ -1,5 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Audio } from "expo-av";
+import {
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+  useAudioRecorderState,
+} from "expo-audio";
 import { useCallback, useState } from "react";
 import { Alert } from "react-native";
 
@@ -41,7 +47,8 @@ const VOICE_SETTINGS_KEY = "@english_chat_voice_settings";
 export const useEnhancedSpeechToText = () => {
   const [isListening, setIsListening] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorderState = useAudioRecorderState(audioRecorder);
   const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>({
     analysisEnabled: true,
     feedbackLevel: "detailed",
@@ -74,7 +81,7 @@ export const useEnhancedSpeechToText = () => {
   const startListening = useCallback(async () => {
     try {
       // Request permissions
-      const permission = await Audio.requestPermissionsAsync();
+      const permission = await requestRecordingPermissionsAsync();
       if (!permission.granted) {
         Alert.alert(
           "Permission required",
@@ -84,23 +91,16 @@ export const useEnhancedSpeechToText = () => {
       }
 
       // Configure audio mode for high-quality recording
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
-        staysActiveInBackground: false,
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
       });
 
       setIsListening(true);
 
-      // Use enhanced recording options for better analysis
-      const recordingOptions = Audio.RecordingOptionsPresets.HIGH_QUALITY;
-
-      const { recording: newRecording } = await Audio.Recording.createAsync(
-        recordingOptions
-      );
-      setRecording(newRecording);
+      // Prepare and start recording with high quality settings
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
     } catch (error) {
       console.error("Failed to start recording", error);
       Alert.alert("Error", "Failed to start recording");
@@ -109,7 +109,7 @@ export const useEnhancedSpeechToText = () => {
   }, []);
 
   const stopListening = useCallback(async (): Promise<AudioAnalysisResult> => {
-    if (!recording) {
+    if (!recorderState.isRecording) {
       return {
         transcription: "",
         confidence: 0,
@@ -124,9 +124,8 @@ export const useEnhancedSpeechToText = () => {
       setIsListening(false);
       setIsAnalyzing(true);
 
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
-      setRecording(null);
+      await audioRecorder.stop();
+      const uri = audioRecorder.uri;
 
       // TODO: Replace with actual Whisper.cpp integration and pronunciation analysis
       // For now, simulate advanced analysis
@@ -147,7 +146,7 @@ export const useEnhancedSpeechToText = () => {
         audioQuality: "poor",
       };
     }
-  }, [recording, voiceSettings]);
+  }, [voiceSettings]);
 
   return {
     isListening,

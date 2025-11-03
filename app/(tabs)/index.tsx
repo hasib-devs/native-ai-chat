@@ -12,6 +12,7 @@ import { ConversationHistoryModal } from "@/components/ConversationHistoryModal"
 import { EnhancedMicButton } from "@/components/EnhancedMicButton";
 import { LearningInsights } from "@/components/LearningInsights";
 import { LearningProgress } from "@/components/LearningProgress";
+import { ModelDownloadModal } from "@/components/ModelDownloadModal";
 import { PronunciationFeedback } from "@/components/PronunciationFeedback";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
@@ -25,6 +26,7 @@ import {
   AudioAnalysisResult,
   useEnhancedSpeechToText,
 } from "@/hooks/useEnhancedSpeechToText";
+import { useOfflineSpeechToText } from "@/hooks/useOfflineSpeechToText";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import {
@@ -53,6 +55,9 @@ export default function ChatScreen() {
     useState<AudioAnalysisResult | null>(null);
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
 
+  // Offline AI states
+  const [showModelDownload, setShowModelDownload] = useState(false);
+
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
 
@@ -66,8 +71,22 @@ export default function ChatScreen() {
     loadVoiceSettings,
     saveVoiceSettings,
   } = useEnhancedSpeechToText();
-  const { speak } = useTextToSpeech();
 
+  // Offline speech recognition
+  const {
+    isListening: isOfflineListening,
+    isProcessing: isOfflineProcessing,
+    isOnline,
+    isOfflineCapable,
+    currentModel,
+    config: offlineConfig,
+    startListening: startOfflineListening,
+    stopListening: stopOfflineListening,
+    getRecommendedStrategy,
+    offlineService,
+  } = useOfflineSpeechToText();
+
+  const { speak } = useTextToSpeech();
   const { loadConversation, startNewConversation } = useConversationPersistence(
     {
       messages,
@@ -76,6 +95,14 @@ export default function ChatScreen() {
       setConversationHistory,
     }
   );
+
+  const handleModelUpdate = useCallback(() => {
+    // Refresh offline speech service when models are updated
+    if (offlineService) {
+      // This will trigger a re-check of available models
+      loadVoiceSettings();
+    }
+  }, [offlineService, loadVoiceSettings]);
 
   // Load voice settings on mount
   useEffect(() => {
@@ -258,6 +285,29 @@ export default function ChatScreen() {
     []
   );
 
+  // Handle offline voice input
+  const handleOfflineVoiceInput = useCallback(async () => {
+    try {
+      const result = await stopOfflineListening();
+
+      if (result && result.transcription.trim()) {
+        const userMessage: IMessage = {
+          _id: Math.random().toString(),
+          text: result.transcription,
+          createdAt: new Date(),
+          user: {
+            _id: "user",
+            name: "You",
+          },
+        };
+        onSend([userMessage]);
+      }
+    } catch (err) {
+      console.error("Failed to process offline voice input:", err);
+      Alert.alert("Error", "Failed to process offline voice input");
+    }
+  }, [stopOfflineListening, onSend]);
+
   // Handle voice settings update
   const handleUpdateVoiceSettings = useCallback(
     (newSettings: typeof voiceSettings) => {
@@ -330,14 +380,71 @@ export default function ChatScreen() {
         primaryStyle={{ alignItems: "center" }}
       />
       <View style={styles.micButtonContainer}>
-        <EnhancedMicButton
-          isListening={isEnhancedListening}
-          isAnalyzing={isAnalyzing}
-          onStartListening={startEnhancedListening}
-          onStopListening={handleEnhancedVoiceInput}
-          onShowFeedback={handleShowPronunciationFeedback}
-          disabled={!voiceSettings.analysisEnabled}
-        />
+        {offlineConfig.preferOffline ? (
+          <EnhancedMicButton
+            isListening={isOfflineListening}
+            isAnalyzing={isOfflineProcessing}
+            onStartListening={startOfflineListening}
+            onStopListening={async () => {
+              try {
+                const result = await stopOfflineListening();
+                if (result) {
+                  // Convert OfflineSTTResult to AudioAnalysisResult for feedback display
+                  const analysisResult: AudioAnalysisResult = {
+                    transcription: result.transcription,
+                    confidence: result.confidence,
+                    pronunciationScore: Math.round(result.confidence * 100),
+                    wordAnalysis: [],
+                    suggestedImprovements: [
+                      `Processed ${
+                        result.isOffline ? "offline" : "online"
+                      } using ${result.model}`,
+                    ],
+                    audioQuality:
+                      result.confidence > 0.8
+                        ? "excellent"
+                        : result.confidence > 0.6
+                        ? "good"
+                        : result.confidence > 0.4
+                        ? "fair"
+                        : "poor",
+                  };
+                  handleShowPronunciationFeedback(analysisResult);
+                  return analysisResult;
+                }
+                return {
+                  transcription: "",
+                  confidence: 0,
+                  pronunciationScore: 0,
+                  wordAnalysis: [],
+                  suggestedImprovements: [],
+                  audioQuality: "poor" as const,
+                };
+              } catch (err) {
+                console.error("Offline processing failed:", err);
+                return {
+                  transcription: "",
+                  confidence: 0,
+                  pronunciationScore: 0,
+                  wordAnalysis: [],
+                  suggestedImprovements: ["Processing failed"],
+                  audioQuality: "poor" as const,
+                };
+              }
+            }}
+            onShowFeedback={handleShowPronunciationFeedback}
+            disabled={!isOfflineCapable && !isOnline}
+          />
+        ) : (
+          <EnhancedMicButton
+            isListening={isEnhancedListening}
+            isAnalyzing={isAnalyzing}
+            onStartListening={startEnhancedListening}
+            onStopListening={handleEnhancedVoiceInput}
+            onShowFeedback={handleShowPronunciationFeedback}
+            disabled={!voiceSettings.analysisEnabled}
+          />
+        )}
       </View>
     </View>
   );
@@ -372,6 +479,12 @@ export default function ChatScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.progressButton, { backgroundColor: colors.tint }]}
+            onPress={() => setShowModelDownload(true)}
+          >
+            <IconSymbol name="square.and.arrow.down" size={16} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.progressButton, { backgroundColor: colors.tint }]}
             onPress={() => setShowVoiceSettings(true)}
           >
             <IconSymbol name="gear" size={16} color="white" />
@@ -394,6 +507,37 @@ export default function ChatScreen() {
         </View>
       </View>
 
+      {/* Offline Status Indicator */}
+      <View style={styles.statusBar}>
+        <View style={styles.connectionStatus}>
+          <View
+            style={[
+              styles.statusDot,
+              { backgroundColor: isOnline ? "#34C759" : "#FF9500" },
+            ]}
+          />
+          <ThemedText style={styles.statusText}>
+            {isOnline ? "Online" : "Offline"}
+          </ThemedText>
+        </View>
+
+        {isOfflineCapable && (
+          <View style={styles.offlineStatus}>
+            <IconSymbol name="cpu" size={14} color={colors.tint} />
+            <ThemedText style={[styles.statusText, { color: colors.tint }]}>
+              {currentModel || "Offline Ready"}
+            </ThemedText>
+          </View>
+        )}
+
+        <ThemedText
+          style={[styles.strategyText, { color: colors.text }]}
+          numberOfLines={1}
+        >
+          {getRecommendedStrategy()}
+        </ThemedText>
+      </View>
+
       {/* Loading state */}
       {isLoading ? (
         <ThemedView style={styles.loadingContainer}>
@@ -414,7 +558,6 @@ export default function ChatScreen() {
           renderBubble={renderBubble}
           renderInputToolbar={renderInputToolbar}
           renderSend={renderSend}
-          scrollToBottom
           scrollToBottomComponent={() => (
             <IconSymbol
               name="arrow.down.circle"
@@ -463,6 +606,12 @@ export default function ChatScreen() {
         onClose={() => setShowVoiceSettings(false)}
         settings={voiceSettings}
         onUpdateSettings={handleUpdateVoiceSettings}
+      />
+
+      <ModelDownloadModal
+        visible={showModelDownload}
+        onClose={() => setShowModelDownload(false)}
+        onModelUpdate={handleModelUpdate}
       />
     </ThemedView>
   );
@@ -541,5 +690,38 @@ const styles = StyleSheet.create({
   sendButton: {
     marginBottom: 8,
     marginRight: 8,
+  },
+  statusBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+  },
+  connectionStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    opacity: 0.8,
+  },
+  offlineStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  strategyText: {
+    fontSize: 10,
+    opacity: 0.6,
+    flex: 1,
+    textAlign: "right",
   },
 });
