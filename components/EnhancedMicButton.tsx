@@ -1,10 +1,9 @@
-import React, { useState } from "react";
+import React, { FC, useEffect, useState } from "react";
 import {
   Animated,
   StyleSheet,
   Text,
   TouchableOpacity,
-  Vibration,
   View,
 } from "react-native";
 import { useThemeColor } from "../hooks/use-theme-color";
@@ -19,7 +18,7 @@ interface EnhancedMicButtonProps {
   disabled?: boolean;
 }
 
-export const EnhancedMicButton: React.FC<EnhancedMicButtonProps> = ({
+export const EnhancedMicButton: FC<EnhancedMicButtonProps> = ({
   onStartListening,
   onStopListening,
   onShowFeedback,
@@ -34,12 +33,8 @@ export const EnhancedMicButton: React.FC<EnhancedMicButtonProps> = ({
     { light: "#007AFF", dark: "#0A84FF" },
     "tint"
   );
-  const textColor = useThemeColor(
-    { light: "#000000", dark: "#FFFFFF" },
-    "text"
-  );
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (isListening) {
       // Start ripple animation
       Animated.loop(
@@ -83,7 +78,7 @@ export const EnhancedMicButton: React.FC<EnhancedMicButtonProps> = ({
     }
   }, [isListening, rippleAnim, pulseAnim]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (isAnalyzing) {
       // Rotating animation for analysis
       Animated.loop(
@@ -100,26 +95,10 @@ export const EnhancedMicButton: React.FC<EnhancedMicButtonProps> = ({
     if (disabled) return;
 
     if (isListening) {
-      // Stop listening and analyze
-      Vibration.vibrate(50);
-      try {
-        const result = await onStopListening();
-        // Show feedback modal
-        onShowFeedback(result);
-      } catch (error) {
-        console.error("Failed to analyze speech:", error);
-      }
+      await onStopListening();
     } else {
-      // Start listening
-      Vibration.vibrate(50);
       onStartListening();
     }
-  };
-
-  const getButtonText = () => {
-    if (isAnalyzing) return "Analyzing...";
-    if (isListening) return "Tap to analyze";
-    return "Hold to speak";
   };
 
   const getButtonIcon = () => {
@@ -130,24 +109,17 @@ export const EnhancedMicButton: React.FC<EnhancedMicButtonProps> = ({
 
   const rippleScale = rippleAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 2],
+    outputRange: [1, 1.2],
   });
 
   const rippleOpacity = rippleAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.7, 0],
+    outputRange: [0.3, 0],
   });
 
   return (
     <View style={styles.container}>
-      {/* Status text */}
-      <Text style={[styles.statusText, { color: textColor }]}>
-        {getButtonText()}
-      </Text>
-
-      {/* Button with animations */}
       <View style={styles.buttonContainer}>
-        {/* Ripple effect for listening state */}
         {isListening && (
           <Animated.View
             style={[
@@ -182,13 +154,6 @@ export const EnhancedMicButton: React.FC<EnhancedMicButtonProps> = ({
           </TouchableOpacity>
         </Animated.View>
       </View>
-
-      {/* Hint text */}
-      <Text style={[styles.hintText, { color: "#8E8E93" }]}>
-        {isListening
-          ? "Speak clearly for pronunciation analysis"
-          : "Get detailed feedback on your pronunciation"}
-      </Text>
     </View>
   );
 };
@@ -231,7 +196,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   buttonIcon: {
-    fontSize: 32,
+    fontSize: 25,
   },
   hintText: {
     fontSize: 12,

@@ -20,7 +20,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Chat",
+          title: "",
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="message.fill" color={color} />
           ),

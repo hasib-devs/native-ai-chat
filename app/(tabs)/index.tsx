@@ -1,24 +1,18 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, TouchableOpacity, View, useColorScheme } from "react-native";
 import {
-  Bubble,
-  GiftedChat,
-  IMessage,
-  InputToolbar,
-  Send,
-} from "react-native-gifted-chat";
+  Alert,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+  useColorScheme,
+} from "react-native";
+import { Bubble, GiftedChat, IMessage, Send } from "react-native-gifted-chat";
 
-import { ConversationHistoryModal } from "@/components/ConversationHistoryModal";
 import { EnhancedMicButton } from "@/components/EnhancedMicButton";
-import { LearningInsights } from "@/components/LearningInsights";
-import { LearningProgress } from "@/components/LearningProgress";
-import { ModelDownloadModal } from "@/components/ModelDownloadModal";
-import { PronunciationFeedback } from "@/components/PronunciationFeedback";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { TypingIndicator } from "@/components/TypingIndicator";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { VoiceSettingsModal } from "@/components/VoiceSettingsModal";
 import { Colors } from "@/constants/theme";
 import { useConversationPersistence } from "@/hooks/useConversationPersistence";
 import {
@@ -32,8 +26,6 @@ import {
   ChatMessage,
   getEnhancedAIResponse,
 } from "@/utils/aiResponses";
-import { ConversationSession } from "@/utils/conversationStorage";
-import { styles } from "./styles";
 
 export default function ChatScreen() {
   const [messages, setMessages] = useState<IMessage[]>([]);
@@ -41,7 +33,7 @@ export default function ChatScreen() {
     []
   );
   const [isLoading, setIsLoading] = useState(true);
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  // const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [currentInsights, setCurrentInsights] =
     useState<AIResponseContext | null>(null);
   const [isAITyping, setIsAITyping] = useState(false);
@@ -94,13 +86,11 @@ export default function ChatScreen() {
     }
   );
 
-  const handleModelUpdate = useCallback(() => {
-    // Refresh offline speech service when models are updated
-    if (offlineService) {
-      // This will trigger a re-check of available models
-      loadVoiceSettings();
-    }
-  }, [offlineService, loadVoiceSettings]);
+  // const handleModelUpdate = useCallback(() => {
+  //   if (offlineService) {
+  //     loadVoiceSettings();
+  //   }
+  // }, [offlineService, loadVoiceSettings]);
 
   // Load voice settings on mount
   useEffect(() => {
@@ -241,38 +231,39 @@ export default function ChatScreen() {
   // }, [stopListening, onSend]);
 
   // Handle enhanced voice input with pronunciation analysis
-  const handleEnhancedVoiceInput =
-    useCallback(async (): Promise<AudioAnalysisResult> => {
-      try {
-        const result = await stopEnhancedListening();
+  const handleEnhancedVoiceInput = useCallback(async () => {
+    const result = await stopEnhancedListening();
 
-        // If analysis is successful and has transcription, send as message
-        if (result.transcription && result.transcription.trim()) {
-          const userMessage: IMessage = {
-            _id: Math.random().toString(),
-            text: result.transcription,
-            createdAt: new Date(),
-            user: {
-              _id: "user",
-              name: "You",
-            },
-          };
-          onSend([userMessage]);
-        }
+    return result;
+    // try {
 
-        return result;
-      } catch {
-        Alert.alert("Error", "Failed to analyze pronunciation");
-        return {
-          transcription: "",
-          confidence: 0,
-          pronunciationScore: 0,
-          wordAnalysis: [],
-          suggestedImprovements: ["Analysis failed. Please try again."],
-          audioQuality: "poor",
-        };
-      }
-    }, [stopEnhancedListening, onSend]);
+    //   // If analysis is successful and has transcription, send as message
+    //   if (result.transcription && result.transcription.trim()) {
+    //     const userMessage: IMessage = {
+    //       _id: Math.random().toString(),
+    //       text: result.transcription,
+    //       createdAt: new Date(),
+    //       user: {
+    //         _id: "user",
+    //         name: "You",
+    //       },
+    //     };
+    //     onSend([userMessage]);
+    //   }
+
+    //   return result;
+    // } catch {
+    //   Alert.alert("Error", "Failed to analyze pronunciation");
+    //   return {
+    //     transcription: "",
+    //     confidence: 0,
+    //     pronunciationScore: 0,
+    //     wordAnalysis: [],
+    //     suggestedImprovements: ["Analysis failed. Please try again."],
+    //     audioQuality: "poor",
+    //   };
+    // }
+  }, []);
 
   // Handle pronunciation feedback display
   const handleShowPronunciationFeedback = useCallback(
@@ -307,12 +298,12 @@ export default function ChatScreen() {
   // }, [stopOfflineListening, onSend]);
 
   // Handle voice settings update
-  const handleUpdateVoiceSettings = useCallback(
-    (newSettings: typeof voiceSettings) => {
-      saveVoiceSettings(newSettings);
-    },
-    [saveVoiceSettings]
-  );
+  // const handleUpdateVoiceSettings = useCallback(
+  //   (newSettings: typeof voiceSettings) => {
+  //     saveVoiceSettings(newSettings);
+  //   },
+  //   [saveVoiceSettings]
+  // );
 
   // Handle new conversation
   const handleNewConversation = useCallback(async () => {
@@ -335,10 +326,10 @@ export default function ChatScreen() {
   }, [startNewConversation, speak]);
 
   // Handle loading conversation from history
-  const handleLoadConversation = useCallback((session: ConversationSession) => {
-    setMessages(session.messages);
-    setConversationHistory(session.history);
-  }, []);
+  // const handleLoadConversation = useCallback((session: ConversationSession) => {
+  //   setMessages(session.messages);
+  //   setConversationHistory(session.history);
+  // }, []);
 
   // Custom bubble styling
   const renderBubble = (props: any) => (
@@ -366,7 +357,7 @@ export default function ChatScreen() {
   // Custom input toolbar with microphone button
   const renderInputToolbar = (props: any) => (
     <View style={styles.inputToolbarContainer}>
-      <InputToolbar
+      {/* <InputToolbar
         {...props}
         containerStyle={[
           styles.inputToolbar,
@@ -376,8 +367,18 @@ export default function ChatScreen() {
           },
         ]}
         primaryStyle={{ alignItems: "center" }}
+      /> */}
+
+      <EnhancedMicButton
+        isListening={isEnhancedListening}
+        isAnalyzing={isAnalyzing}
+        onStartListening={startEnhancedListening}
+        onStopListening={handleEnhancedVoiceInput}
+        onShowFeedback={handleShowPronunciationFeedback}
+        disabled={!voiceSettings.analysisEnabled}
       />
-      <View style={styles.micButtonContainer}>
+
+      {/* <View style={styles.micButtonContainer}>
         {offlineConfig.preferOffline ? (
           <EnhancedMicButton
             isListening={isOfflineListening}
@@ -443,7 +444,7 @@ export default function ChatScreen() {
             disabled={!voiceSettings.analysisEnabled}
           />
         )}
-      </View>
+      </View> */}
     </View>
   );
 
@@ -469,30 +470,30 @@ export default function ChatScreen() {
           English Practice Chat
         </ThemedText>
         <View style={styles.headerButtons}>
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={[styles.progressButton, { backgroundColor: colors.tint }]}
             onPress={() => setShowProgressModal(true)}
           >
             <IconSymbol name="chart.bar.fill" size={16} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </TouchableOpacity> */}
+          {/* <TouchableOpacity
             style={[styles.progressButton, { backgroundColor: colors.tint }]}
             onPress={() => setShowModelDownload(true)}
           >
             <IconSymbol name="square.and.arrow.down" size={16} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </TouchableOpacity> */}
+          {/* <TouchableOpacity
             style={[styles.progressButton, { backgroundColor: colors.tint }]}
             onPress={() => setShowVoiceSettings(true)}
           >
             <IconSymbol name="gear" size={16} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </TouchableOpacity> */}
+          {/* <TouchableOpacity
             style={[styles.historyButton, { backgroundColor: colors.tint }]}
             onPress={() => setShowHistoryModal(true)}
           >
             <IconSymbol name="clock" size={16} color="white" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           <TouchableOpacity
             style={[styles.newChatButton, { backgroundColor: colors.tint }]}
             onPress={handleNewConversation}
@@ -506,7 +507,7 @@ export default function ChatScreen() {
       </View>
 
       {/* Offline Status Indicator */}
-      <View style={styles.statusBar}>
+      {/* <View style={styles.statusBar}>
         <View style={styles.connectionStatus}>
           <View
             style={[
@@ -534,62 +535,96 @@ export default function ChatScreen() {
         >
           {getRecommendedStrategy()}
         </ThemedText>
-      </View>
+      </View> */}
 
       {/* Loading state */}
-      {isLoading ? (
+      {/* {isLoading ? (
         <ThemedView style={styles.loadingContainer}>
           <ThemedText style={styles.loadingText}>
             Loading conversation...
           </ThemedText>
         </ThemedView>
       ) : (
-        <GiftedChat
-          messages={messages}
-          onSend={onSend}
-          user={{
-            _id: "user",
-            name: "You",
-          }}
-          placeholder="Type your message or use the microphone..."
-          showAvatarForEveryMessage={true}
-          renderBubble={renderBubble}
-          renderInputToolbar={renderInputToolbar}
-          renderSend={renderSend}
-          scrollToBottomComponent={() => (
+        <>
+          <GiftedChat
+            messages={messages}
+            onSend={onSend}
+            user={{
+              _id: "user",
+              name: "You",
+            }}
+            placeholder="Type your message or use the microphone..."
+            showAvatarForEveryMessage={true}
+            renderBubble={renderBubble}
+            renderInputToolbar={renderInputToolbar}
+            renderSend={renderSend}
+            scrollToBottomComponent={() => (
+              <IconSymbol
+                name="arrow.down.circle"
+                size={24}
+                color={colors.tint}
+              />
+            )}
+          />
+        </>
+      )} */}
+
+      {/* Typing Indicator */}
+      <TypingIndicator visible={isAITyping} />
+
+      <GiftedChat
+        messages={messages}
+        onSend={onSend}
+        user={{
+          _id: "user",
+          name: "You",
+        }}
+        placeholder="Type your message or use the microphone..."
+        showAvatarForEveryMessage={true}
+        renderBubble={renderBubble}
+        renderInputToolbar={renderInputToolbar}
+        renderSend={renderSend}
+        scrollToBottomComponent={() => (
+          <>
             <IconSymbol
               name="arrow.down.circle"
               size={24}
               color={colors.tint}
             />
-          )}
-        />
-      )}
+          </>
+        )}
+      />
 
-      {/* Typing Indicator */}
-      <TypingIndicator visible={isAITyping} />
+      {/* <EnhancedMicButton
+        isListening={isEnhancedListening}
+        isAnalyzing={isAnalyzing}
+        onStartListening={startEnhancedListening}
+        onStopListening={handleEnhancedVoiceInput}
+        onShowFeedback={handleShowPronunciationFeedback}
+        disabled={!voiceSettings.analysisEnabled}
+      /> */}
 
       {/* Learning Insights */}
-      {currentInsights && (
+      {/* {currentInsights && (
         <LearningInsights
           context={currentInsights}
           onDismiss={() => setCurrentInsights(null)}
         />
-      )}
+      )} */}
 
-      <ConversationHistoryModal
+      {/* <ConversationHistoryModal
         visible={showHistoryModal}
         onClose={() => setShowHistoryModal(false)}
         onSelectConversation={handleLoadConversation}
-      />
+      /> */}
 
-      <LearningProgress
+      {/* <LearningProgress
         visible={showProgressModal}
         onClose={() => setShowProgressModal(false)}
         conversationHistory={conversationHistory}
-      />
+      /> */}
 
-      <PronunciationFeedback
+      {/* <PronunciationFeedback
         visible={showPronunciationFeedback}
         onClose={() => setShowPronunciationFeedback(false)}
         analysisResult={pronunciationResult}
@@ -597,20 +632,128 @@ export default function ChatScreen() {
           setShowPronunciationFeedback(false);
           startEnhancedListening();
         }}
-      />
+      /> */}
 
-      <VoiceSettingsModal
+      {/* <VoiceSettingsModal
         visible={showVoiceSettings}
         onClose={() => setShowVoiceSettings(false)}
         settings={voiceSettings}
         onUpdateSettings={handleUpdateVoiceSettings}
-      />
+      /> */}
 
-      <ModelDownloadModal
+      {/* <ModelDownloadModal
         visible={showModelDownload}
         onClose={() => setShowModelDownload(false)}
         onModelUpdate={handleModelUpdate}
-      />
+      /> */}
     </ThemedView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingTop: 20,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  headerTitle: {
+    flex: 1,
+  },
+  headerButtons: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  progressButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  historyButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  newChatButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  newChatText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    opacity: 0.6,
+    fontStyle: "italic",
+  },
+  inputToolbarContainer: {
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+  },
+  inputToolbar: {
+    flex: 1,
+    marginRight: 10,
+    borderTopWidth: 1,
+    borderRadius: 25,
+    paddingTop: 8,
+  },
+  micButtonContainer: {
+    marginBottom: 8,
+  },
+  sendButton: {
+    marginBottom: 8,
+    marginRight: 8,
+  },
+  statusBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+  },
+  connectionStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    opacity: 0.8,
+  },
+  offlineStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  strategyText: {
+    fontSize: 10,
+    opacity: 0.6,
+    flex: 1,
+    textAlign: "right",
+  },
+});
