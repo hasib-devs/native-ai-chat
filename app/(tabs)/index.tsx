@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
 import {
   Bubble,
   GiftedChat,
@@ -8,43 +8,108 @@ import {
   Send,
 } from "react-native-gifted-chat";
 
-import { MicButton } from "@/components/MicButton";
+import { ConversationHistoryModal } from "@/components/ConversationHistoryModal";
+import { EnhancedMicButton } from "@/components/EnhancedMicButton";
+import { LearningInsights } from "@/components/LearningInsights";
+import { LearningProgress } from "@/components/LearningProgress";
+import { PronunciationFeedback } from "@/components/PronunciationFeedback";
+import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { TypingIndicator } from "@/components/TypingIndicator";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { VoiceSettingsModal } from "@/components/VoiceSettingsModal";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useConversationPersistence } from "@/hooks/useConversationPersistence";
+import {
+  AudioAnalysisResult,
+  useEnhancedSpeechToText,
+} from "@/hooks/useEnhancedSpeechToText";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
-import { ChatMessage, getAIResponse } from "@/utils/aiResponses";
+import {
+  AIResponseContext,
+  ChatMessage,
+  getEnhancedAIResponse,
+} from "@/utils/aiResponses";
+import { ConversationSession } from "@/utils/conversationStorage";
 
 export default function ChatScreen() {
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [conversationHistory, setConversationHistory] = useState<ChatMessage[]>(
     []
   );
+  const [isLoading, setIsLoading] = useState(true);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [currentInsights, setCurrentInsights] =
+    useState<AIResponseContext | null>(null);
+  const [isAITyping, setIsAITyping] = useState(false);
+  const [showProgressModal, setShowProgressModal] = useState(false);
+
+  // Pronunciation feedback states
+  const [showPronunciationFeedback, setShowPronunciationFeedback] =
+    useState(false);
+  const [pronunciationResult, setPronunciationResult] =
+    useState<AudioAnalysisResult | null>(null);
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
 
   const { isListening, startListening, stopListening } = useSpeechToText();
+  const {
+    isListening: isEnhancedListening,
+    isAnalyzing,
+    startListening: startEnhancedListening,
+    stopListening: stopEnhancedListening,
+    voiceSettings,
+    loadVoiceSettings,
+    saveVoiceSettings,
+  } = useEnhancedSpeechToText();
   const { speak } = useTextToSpeech();
 
-  // Initialize chat with welcome message
-  useEffect(() => {
-    const welcomeMessage: IMessage = {
-      _id: Math.random().toString(),
-      text: "Hello! I'm your English practice buddy. You can type or speak to me - I'm here to help you practice conversational English! 😊",
-      createdAt: new Date(),
-      user: {
-        _id: "ai",
-        name: "English Tutor",
-        avatar: "🤖",
-      },
-    };
-    setMessages([welcomeMessage]);
+  const { loadConversation, startNewConversation } = useConversationPersistence(
+    {
+      messages,
+      conversationHistory,
+      setMessages,
+      setConversationHistory,
+    }
+  );
 
-    // Speak welcome message
-    speak(welcomeMessage.text);
-  }, [speak]);
+  // Load voice settings on mount
+  useEffect(() => {
+    loadVoiceSettings();
+  }, [loadVoiceSettings]);
+
+  // Initialize chat - load saved conversation or create welcome message
+  useEffect(() => {
+    const initializeChat = async () => {
+      setIsLoading(true);
+      const conversationLoaded = await loadConversation();
+
+      if (!conversationLoaded) {
+        // No saved conversation, create welcome message
+        const welcomeMessage: IMessage = {
+          _id: Math.random().toString(),
+          text: "Hello! I'm your English practice buddy. You can type or speak to me - I'm here to help you practice conversational English! 😊",
+          createdAt: new Date(),
+          user: {
+            _id: "ai",
+            name: "English Tutor",
+            avatar: "🤖",
+          },
+        };
+        setMessages([welcomeMessage]);
+
+        // Speak welcome message only for new conversations
+        speak(welcomeMessage.text);
+      }
+      setIsLoading(false);
+    };
+
+    initializeChat();
+  }, [loadConversation, speak]);
 
   // Handle sending new messages
   const onSend = useCallback(
@@ -66,16 +131,20 @@ export default function ChatScreen() {
 
       setConversationHistory((prev) => [...prev, userChatMessage]);
 
+      // Show typing indicator
+      setIsAITyping(true);
+
       // Generate AI response
       setTimeout(() => {
-        const aiResponseText = getAIResponse(
+        setIsAITyping(false);
+        const enhancedResponse = getEnhancedAIResponse(
           userMessage.text,
           conversationHistory
         );
 
         const aiMessage: IMessage = {
           _id: Math.random().toString(),
-          text: aiResponseText,
+          text: enhancedResponse.text,
           createdAt: new Date(),
           user: {
             _id: "ai",
@@ -91,15 +160,27 @@ export default function ChatScreen() {
         // Update conversation history
         const aiChatMessage: ChatMessage = {
           id: aiMessage._id.toString(),
-          text: aiResponseText,
+          text: enhancedResponse.text,
           sender: "ai",
           timestamp: aiMessage.createdAt as Date,
         };
 
         setConversationHistory((prev) => [...prev, aiChatMessage]);
 
+        // Show learning insights if available
+        if (
+          enhancedResponse.context.responseType === "correction" ||
+          enhancedResponse.context.responseType === "teaching" ||
+          (enhancedResponse.context.vocabularyWords &&
+            enhancedResponse.context.vocabularyWords.length > 0) ||
+          (enhancedResponse.context.grammarSuggestions &&
+            enhancedResponse.context.grammarSuggestions.length > 0)
+        ) {
+          setCurrentInsights(enhancedResponse.context);
+        }
+
         // Speak AI response
-        speak(aiResponseText);
+        speak(enhancedResponse.text);
       }, 1000); // Small delay to simulate thinking
     },
     [conversationHistory, speak]
@@ -133,6 +214,83 @@ export default function ChatScreen() {
       Alert.alert("Error", "Failed to process voice input");
     }
   }, [stopListening, onSend]);
+
+  // Handle enhanced voice input with pronunciation analysis
+  const handleEnhancedVoiceInput =
+    useCallback(async (): Promise<AudioAnalysisResult> => {
+      try {
+        const result = await stopEnhancedListening();
+
+        // If analysis is successful and has transcription, send as message
+        if (result.transcription && result.transcription.trim()) {
+          const userMessage: IMessage = {
+            _id: Math.random().toString(),
+            text: result.transcription,
+            createdAt: new Date(),
+            user: {
+              _id: "user",
+              name: "You",
+            },
+          };
+          onSend([userMessage]);
+        }
+
+        return result;
+      } catch (error) {
+        Alert.alert("Error", "Failed to analyze pronunciation");
+        return {
+          transcription: "",
+          confidence: 0,
+          pronunciationScore: 0,
+          wordAnalysis: [],
+          suggestedImprovements: ["Analysis failed. Please try again."],
+          audioQuality: "poor",
+        };
+      }
+    }, [stopEnhancedListening, onSend]);
+
+  // Handle pronunciation feedback display
+  const handleShowPronunciationFeedback = useCallback(
+    (result: AudioAnalysisResult) => {
+      setPronunciationResult(result);
+      setShowPronunciationFeedback(true);
+    },
+    []
+  );
+
+  // Handle voice settings update
+  const handleUpdateVoiceSettings = useCallback(
+    (newSettings: typeof voiceSettings) => {
+      saveVoiceSettings(newSettings);
+    },
+    [saveVoiceSettings]
+  );
+
+  // Handle new conversation
+  const handleNewConversation = useCallback(async () => {
+    Alert.alert(
+      "Start New Conversation",
+      "This will save your current conversation and start fresh. Continue?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Start New",
+          onPress: async () => {
+            const welcomeMessage = await startNewConversation();
+            if (welcomeMessage) {
+              speak(welcomeMessage.text);
+            }
+          },
+        },
+      ]
+    );
+  }, [startNewConversation, speak]);
+
+  // Handle loading conversation from history
+  const handleLoadConversation = useCallback((session: ConversationSession) => {
+    setMessages(session.messages);
+    setConversationHistory(session.history);
+  }, []);
 
   // Custom bubble styling
   const renderBubble = (props: any) => (
@@ -172,10 +330,13 @@ export default function ChatScreen() {
         primaryStyle={{ alignItems: "center" }}
       />
       <View style={styles.micButtonContainer}>
-        <MicButton
-          isListening={isListening}
-          onStartListening={handleStartListening}
-          onStopListening={handleStopListening}
+        <EnhancedMicButton
+          isListening={isEnhancedListening}
+          isAnalyzing={isAnalyzing}
+          onStartListening={startEnhancedListening}
+          onStopListening={handleEnhancedVoiceInput}
+          onShowFeedback={handleShowPronunciationFeedback}
+          disabled={!voiceSettings.analysisEnabled}
         />
       </View>
     </View>
@@ -192,22 +353,116 @@ export default function ChatScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <GiftedChat
-        messages={messages}
-        onSend={onSend}
-        user={{
-          _id: "user",
-          name: "You",
+      {/* Header with New Chat button */}
+      <View
+        style={[
+          styles.header,
+          { borderBottomColor: colorScheme === "dark" ? "#333" : "#e0e0e0" },
+        ]}
+      >
+        <ThemedText type="subtitle" style={styles.headerTitle}>
+          English Practice Chat
+        </ThemedText>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={[styles.progressButton, { backgroundColor: colors.tint }]}
+            onPress={() => setShowProgressModal(true)}
+          >
+            <IconSymbol name="chart.bar.fill" size={16} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.progressButton, { backgroundColor: colors.tint }]}
+            onPress={() => setShowVoiceSettings(true)}
+          >
+            <IconSymbol name="gear" size={16} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.historyButton, { backgroundColor: colors.tint }]}
+            onPress={() => setShowHistoryModal(true)}
+          >
+            <IconSymbol name="clock" size={16} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.newChatButton, { backgroundColor: colors.tint }]}
+            onPress={handleNewConversation}
+          >
+            <IconSymbol name="plus.circle.fill" size={20} color="white" />
+            <ThemedText style={[styles.newChatText, { color: "white" }]}>
+              New
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Loading state */}
+      {isLoading ? (
+        <ThemedView style={styles.loadingContainer}>
+          <ThemedText style={styles.loadingText}>
+            Loading conversation...
+          </ThemedText>
+        </ThemedView>
+      ) : (
+        <GiftedChat
+          messages={messages}
+          onSend={onSend}
+          user={{
+            _id: "user",
+            name: "You",
+          }}
+          placeholder="Type your message or use the microphone..."
+          showAvatarForEveryMessage={true}
+          renderBubble={renderBubble}
+          renderInputToolbar={renderInputToolbar}
+          renderSend={renderSend}
+          scrollToBottom
+          scrollToBottomComponent={() => (
+            <IconSymbol
+              name="arrow.down.circle"
+              size={24}
+              color={colors.tint}
+            />
+          )}
+        />
+      )}
+
+      {/* Typing Indicator */}
+      <TypingIndicator visible={isAITyping} />
+
+      {/* Learning Insights */}
+      {currentInsights && (
+        <LearningInsights
+          context={currentInsights}
+          onDismiss={() => setCurrentInsights(null)}
+        />
+      )}
+
+      <ConversationHistoryModal
+        visible={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        onSelectConversation={handleLoadConversation}
+      />
+
+      <LearningProgress
+        visible={showProgressModal}
+        onClose={() => setShowProgressModal(false)}
+        conversationHistory={conversationHistory}
+      />
+
+      <PronunciationFeedback
+        visible={showPronunciationFeedback}
+        onClose={() => setShowPronunciationFeedback(false)}
+        analysisResult={pronunciationResult}
+        onRetry={() => {
+          setShowPronunciationFeedback(false);
+          startEnhancedListening();
         }}
-        placeholder="Type your message or use the microphone..."
-        showAvatarForEveryMessage={true}
-        renderBubble={renderBubble}
-        renderInputToolbar={renderInputToolbar}
-        renderSend={renderSend}
-        scrollToBottom
-        scrollToBottomComponent={() => (
-          <IconSymbol name="arrow.down.circle" size={24} color={colors.tint} />
-        )}
+      />
+
+      <VoiceSettingsModal
+        visible={showVoiceSettings}
+        onClose={() => setShowVoiceSettings(false)}
+        settings={voiceSettings}
+        onUpdateSettings={handleUpdateVoiceSettings}
       />
     </ThemedView>
   );
@@ -216,6 +471,56 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  headerTitle: {
+    flex: 1,
+  },
+  headerButtons: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  progressButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  historyButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  newChatButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  newChatText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    opacity: 0.6,
+    fontStyle: "italic",
   },
   inputToolbarContainer: {
     flexDirection: "row",

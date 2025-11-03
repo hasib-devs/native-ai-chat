@@ -13,10 +13,9 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
-        headerShown: true,
-        headerTitle: "English Chat Practice",
+        headerShown: false,
         tabBarButton: HapticTab,
-      }}
+      }}>
     >
       <Tabs.Screen
         name="index"
