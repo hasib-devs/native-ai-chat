@@ -50,6 +50,7 @@ export default function RealtimeTranscriberRoot() {
   const [logs, setLogs] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [modulesLoaded, setModulesLoaded] = useState(false);
+  const [simulationMode, setSimulationMode] = useState(false);
 
   const log = useCallback((...messages: any[]) => {
     console.log(...messages);
@@ -268,11 +269,23 @@ export default function RealtimeTranscriberRoot() {
 
   const handleError = (error: string) => {
     log("Realtime Error:", error);
+    // Stop transcription on error to prevent crashes
+    stopRealtimeTranscription();
   };
 
   const handleStatusChange = (isActive: boolean) => {
     setIsTranscribing(isActive);
     log(`Realtime status: ${isActive ? "ACTIVE" : "INACTIVE"}`);
+
+    // Add safety check - if we've been active for too long without transcription, stop
+    if (isActive) {
+      setTimeout(() => {
+        if (isTranscribing && !transcribeResult) {
+          log("Safety timeout - stopping transcription to prevent crash");
+          stopRealtimeTranscription();
+        }
+      }, 10000); // 10 second timeout
+    }
   };
 
   const startRealtimeTranscription = async () => {
@@ -281,9 +294,50 @@ export default function RealtimeTranscriberRoot() {
       return;
     }
 
+    // Simulation mode for safe testing
+    if (simulationMode) {
+      log("Starting simulation mode...");
+      setIsTranscribing(true);
+      setRealtimeStats({
+        isActive: true,
+        vadEnabled: true,
+        sliceStats: {
+          memoryUsage: { estimatedMB: 12.5 },
+          currentSliceIndex: 1,
+          transcribeSliceIndex: 0,
+        },
+        autoSliceConfig: { enabled: true, threshold: 0.5, targetDuration: 10 },
+      });
+
+      // Simulate transcription results
+      setTimeout(() => {
+        setTranscribeResult(
+          "Hello, this is a simulated transcription result for testing."
+        );
+        log(
+          "Simulated transcription: Hello, this is a simulated transcription result for testing."
+        );
+      }, 2000);
+
+      return;
+    }
+
     try {
       log("Creating live audio adapter...");
-      const audioStreamInstance = new AudioPcmStreamAdapter();
+
+      // Wrap in additional try-catch to handle native module crashes
+      let audioStreamInstance;
+      try {
+        audioStreamInstance = new AudioPcmStreamAdapter();
+        log("Audio adapter created successfully");
+      } catch (adapterError) {
+        log("Error creating audio adapter:", adapterError);
+        Alert.alert(
+          "Audio Error",
+          "Failed to initialize audio. This may be due to permissions or hardware issues.\n\nTry enabling Simulation Mode for testing."
+        );
+        return;
+      }
 
       // Create RealtimeTranscriber if not exists
       const transcriber = new RealtimeTranscriber(
@@ -298,47 +352,70 @@ export default function RealtimeTranscriberRoot() {
               data: string,
               encoding: string
             ): Promise<void> {
-              const file = new File(getModelDirectory().uri, filePath);
-              file.create({
-                intermediates: true,
-                overwrite: true,
-              });
-              file.write(data, {
-                encoding: encoding as any,
-              });
-
-              return Promise.resolve();
+              try {
+                const file = new File(getModelDirectory().uri, filePath);
+                file.create({
+                  intermediates: true,
+                  overwrite: true,
+                });
+                file.write(data, {
+                  encoding: encoding as any,
+                });
+                return Promise.resolve();
+              } catch (error) {
+                log("Error writing file:", error);
+                return Promise.reject(error);
+              }
             },
             appendFile: function (
               filePath: string,
               data: string,
               encoding: string
             ): Promise<void> {
-              const file = new File(getModelDirectory().uri, filePath);
-              file.create({
-                intermediates: true,
-                overwrite: true,
-              });
-              file.write(data, {
-                encoding: encoding as any,
-              });
-
-              return Promise.resolve();
+              try {
+                const file = new File(getModelDirectory().uri, filePath);
+                file.create({
+                  intermediates: true,
+                  overwrite: true,
+                });
+                file.write(data, {
+                  encoding: encoding as any,
+                });
+                return Promise.resolve();
+              } catch (error) {
+                log("Error appending file:", error);
+                return Promise.reject(error);
+              }
             },
             readFile: function (
               filePath: string,
               encoding: string
             ): Promise<string> {
-              const file = new File(getModelDirectory().uri, filePath);
-              return Promise.resolve(file.base64());
+              try {
+                const file = new File(getModelDirectory().uri, filePath);
+                return Promise.resolve(file.base64());
+              } catch (error) {
+                log("Error reading file:", error);
+                return Promise.reject(error);
+              }
             },
             exists: function (filePath: string): Promise<boolean> {
-              const file = new File(getModelDirectory().uri, filePath);
-              return Promise.resolve(file.exists);
+              try {
+                const file = new File(getModelDirectory().uri, filePath);
+                return Promise.resolve(file.exists);
+              } catch (error) {
+                log("Error checking file exists:", error);
+                return Promise.resolve(false);
+              }
             },
             unlink: function (filePath: string): Promise<void> {
-              const file = new File(getModelDirectory().uri, filePath);
-              return Promise.resolve(file.delete());
+              try {
+                const file = new File(getModelDirectory().uri, filePath);
+                return Promise.resolve(file.delete());
+              } catch (error) {
+                log("Error deleting file:", error);
+                return Promise.reject(error);
+              }
             },
           },
         },
@@ -365,40 +442,102 @@ export default function RealtimeTranscriberRoot() {
           },
           audioOutputPath: getModelDirectory().uri,
         },
-        // Callbacks
+        // Callbacks with error handling
         {
-          onTranscribe: handleTranscribeEvent,
-          onVad: handleVadEvent,
+          onTranscribe: (event) => {
+            try {
+              handleTranscribeEvent(event);
+            } catch (error) {
+              log("Error in transcribe callback:", error);
+            }
+          },
+          onVad: (event) => {
+            try {
+              handleVadEvent(event);
+            } catch (error) {
+              log("Error in VAD callback:", error);
+            }
+          },
           onError: handleError,
           onStatusChange: handleStatusChange,
-          onStatsUpdate: handleStatsUpdate,
+          onStatsUpdate: (statsEvent) => {
+            try {
+              handleStatsUpdate(statsEvent);
+            } catch (error) {
+              log("Error in stats callback:", error);
+            }
+          },
         }
       );
 
-      // realtimeTranscriber.current = transcriber;
       setRealtimeTranscriber(transcriber);
 
       log("Starting realtime transcription...");
-      await transcriber.start();
+
+      // Add timeout for start operation
+      const startPromise = transcriber.start();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Start timeout")), 15000)
+      );
+
+      await Promise.race([startPromise, timeoutPromise]);
       log(`Realtime transcription started: "Live Audio"`);
     } catch (error) {
       log("Error starting realtime transcription:", error);
-      Alert.alert("Error", `Failed to start: ${error}`);
+      // Reset state on error
+      setIsTranscribing(false);
+      setRealtimeTranscriber(null);
+      Alert.alert(
+        "Error",
+        `Failed to start transcription: ${error}\n\nThis may be due to:\n• Audio permissions\n• Hardware compatibility\n• Native module issues`
+      );
     }
   };
 
   const stopRealtimeTranscription = async () => {
+    if (simulationMode) {
+      log("Stopping simulation mode...");
+      setIsTranscribing(false);
+      setRealtimeStats(null);
+      setVadEvents([]);
+      setTranscribeResult(null);
+      return;
+    }
+
     if (!realtimeTranscriber) {
       console.log("Realtime not available");
       return;
     }
 
     try {
-      await realtimeTranscriber.stop();
+      log("Stopping realtime transcription...");
+      setIsTranscribing(false);
+
+      // Add timeout for stop operation to prevent hanging
+      const stopPromise = realtimeTranscriber.stop();
+      const timeoutPromise = new Promise((resolve) =>
+        setTimeout(() => {
+          log("Stop operation timed out - forcing cleanup");
+          resolve(undefined);
+        }, 5000)
+      );
+
+      await Promise.race([stopPromise, timeoutPromise]);
+
       setRealtimeStats(null);
+      setRealtimeTranscriber(null);
+      setVadEvents([]);
+      setTranscribeResult(null);
+
       log("Realtime transcription stopped");
     } catch (error) {
       log("Error stopping realtime transcription:", error);
+      // Force cleanup even if stop fails
+      setIsTranscribing(false);
+      setRealtimeStats(null);
+      setRealtimeTranscriber(null);
+      setVadEvents([]);
+      setTranscribeResult(null);
     }
   };
 
@@ -530,15 +669,35 @@ export default function RealtimeTranscriberRoot() {
         )}
 
         {isLoading || isDownloading ? null : (
-          <Button
-            title={isTranscribing ? "Stop Realtime" : "Start Realtime"}
-            onPress={
-              isTranscribing
-                ? stopRealtimeTranscription
-                : startRealtimeTranscription
-            }
-            disabled={!whisperContext || !vadContext || isDownloading}
-          />
+          <>
+            <Button
+              title={isTranscribing ? "Stop Realtime" : "Start Realtime"}
+              onPress={
+                isTranscribing
+                  ? stopRealtimeTranscription
+                  : startRealtimeTranscription
+              }
+              disabled={!whisperContext || !vadContext || isDownloading}
+            />
+            <View style={{ marginTop: 10 }}>
+              <Button
+                title={
+                  simulationMode
+                    ? "Disable Simulation"
+                    : "Enable Simulation Mode"
+                }
+                onPress={() => {
+                  setSimulationMode(!simulationMode);
+                  log(
+                    simulationMode
+                      ? "Simulation disabled"
+                      : "Simulation enabled - safe UI testing"
+                  );
+                }}
+                color={simulationMode ? "#ff6b6b" : "#4ecdc4"}
+              />
+            </View>
+          </>
         )}
       </View>
     </ScrollView>
