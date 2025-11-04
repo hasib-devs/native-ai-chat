@@ -4,10 +4,10 @@ import {
 } from "expo-audio";
 import { useEffect, useState } from "react";
 import { Alert, Platform } from "react-native";
+import RNFS from "react-native-fs";
 import { initWhisper, initWhisperVad } from "whisper.rn/index.js";
 import { AudioPcmStreamAdapter } from "whisper.rn/realtime-transcription/adapters/AudioPcmStreamAdapter.js";
 import { RealtimeTranscriber } from "whisper.rn/realtime-transcription/index.js";
-
 import { useWhisperModels } from "./use-whisper-models";
 
 export function useWhisper() {
@@ -100,8 +100,9 @@ export function useWhisper() {
 
           // Create transcriber
           const tx = new RealtimeTranscriber(
-            { whisperContext, vadContext, audioStream },
+            { whisperContext, vadContext, audioStream, fs: RNFS },
             {
+              audioSliceSec: 300,
               vadPreset: "default",
               autoSliceOnSpeechEnd: true,
               transcribeOptions: { language: "en" },
