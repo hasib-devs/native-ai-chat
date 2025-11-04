@@ -1,5 +1,3 @@
-import { AudioPcmStreamAdapter } from "whisper.rn/realtime-transcription/adapters/AudioPcmStreamAdapter.js";
-
 import { Directory, File, Paths } from "expo-file-system";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -10,12 +8,13 @@ import {
   Text,
   View,
 } from "react-native";
+
+// Import whisper.rn modules - these will work in development builds
 import {
   initWhisper,
   initWhisperVad,
-  libVersion,
-  WhisperContext,
-  WhisperVadContext,
+  type WhisperContext,
+  type WhisperVadContext,
 } from "whisper.rn/index.js";
 import {
   RealtimeStatsEvent,
@@ -23,6 +22,10 @@ import {
   RealtimeTranscriber,
   RealtimeVadEvent,
 } from "whisper.rn/realtime-transcription/index.js";
+import { AudioPcmStreamAdapter } from "whisper.rn/realtime-transcription/adapters/AudioPcmStreamAdapter.js";
+
+// Simple flag - if imports succeeded, whisper is available
+const whisperModuleAvailable = true;
 
 type WhisperModel =
   | "tiny"
@@ -41,13 +44,13 @@ export default function RealtimeTranscriberRoot() {
     useState<RealtimeTranscriber | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const [vadEvents, setVadEvents] = useState<RealtimeVadEvent[]>([]);
+  const [vadEvents, setVadEvents] = useState<any[]>([]);
   const [realtimeStats, setRealtimeStats] = useState<any>(null);
   const [transcribeResult, setTranscribeResult] = useState<string | null>(null);
-  const [logs, setLogs] = useState([
-    `Realtime Transcriber Demo - whisper.cpp v${libVersion}`,
-  ]);
+  const [logs, setLogs] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [modulesLoaded, setModulesLoaded] = useState(false);
+
   const log = useCallback((...messages: any[]) => {
     console.log(...messages);
     setLogs((prev) => [
@@ -139,17 +142,14 @@ export default function RealtimeTranscriberRoot() {
     }
   };
 
-  const handleError = (error: string) => {
-    log("Realtime Error:", error);
-  };
-
-  const handleStatusChange = (isActive: boolean) => {
-    setIsTranscribing(isActive);
-    log(`Realtime status: ${isActive ? "ACTIVE" : "INACTIVE"}`);
-  };
-
-  const initializeContexts = async () => {
+  // Define initializeContexts as a function declaration for hoisting
+  async function initializeContexts() {
     try {
+      if (!whisperModuleAvailable) {
+        log("Whisper module not available, skipping initialization");
+        return;
+      }
+
       let modelFilePath = "";
       let vadModelFilePath = "";
       try {
@@ -159,6 +159,7 @@ export default function RealtimeTranscriberRoot() {
       } catch (error) {
         log("Error downloading models:", error);
         Alert.alert("Error", `Failed to download models: ${error}`);
+        return;
       } finally {
         setIsDownloading(false);
       }
@@ -169,20 +170,30 @@ export default function RealtimeTranscriberRoot() {
       }
 
       setIsLoading(true);
-      const whisperCtx = await initWhisper({
-        filePath: modelFilePath,
-      });
-      setWhisperContext(whisperCtx);
 
-      log("Initializing VAD context...");
-      const vadCtx = await initWhisperVad({
-        filePath: vadModelFilePath,
-        useGpu: true,
-        nThreads: 4,
-      });
-      setVadContext(vadCtx);
+      try {
+        const whisperCtx = await initWhisper({
+          filePath: modelFilePath,
+        });
+        setWhisperContext(whisperCtx);
 
-      log("Both contexts initialized successfully!");
+        log("Initializing VAD context...");
+        const vadCtx = await initWhisperVad({
+          filePath: vadModelFilePath,
+          useGpu: true,
+          nThreads: 4,
+        });
+        setVadContext(vadCtx);
+
+        log("Both contexts initialized successfully!");
+      } catch (initError) {
+        log("Error during whisper initialization:", initError);
+        Alert.alert(
+          "Initialization Error",
+          "Whisper.rn requires a development build. Please use 'npx expo run:android' or 'npx expo run:ios' instead of Expo Go."
+        );
+        throw initError;
+      }
     } catch (error) {
       log("Error initializing contexts:", error);
       Alert.alert("Error", `Failed to initialize: ${error}`);
@@ -190,6 +201,78 @@ export default function RealtimeTranscriberRoot() {
       setIsLoading(false);
       setIsDownloading(false);
     }
+  }
+
+  useEffect(() => {
+    const initializeApp = async () => {
+      setModulesLoaded(true);
+
+      // Add runtime check for module availability
+      try {
+        if (typeof initWhisper === "function" && whisperModuleAvailable) {
+          console.log("📱 Whisper.rn detected - initializing contexts...");
+          await initializeContexts();
+        } else {
+          console.log("⚠️ Whisper.rn not available - running in fallback mode");
+        }
+      } catch (error) {
+        console.warn("Failed to initialize whisper modules:", error);
+      }
+    };
+
+    initializeApp();
+
+    return () => {
+      // Cleanup on unmount
+      console.log("Cleaning up...");
+      whisperContext?.release?.();
+      vadContext?.release?.();
+      realtimeTranscriber?.release?.();
+    };
+  }, []);
+
+  // Show loading while modules are being loaded
+  if (!modulesLoaded) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading Whisper modules...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Early return if whisper module is not available (Expo Go)
+  if (!whisperModuleAvailable || typeof initWhisper !== "function") {
+    return (
+      <View style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorTitle}>Whisper.rn Not Available</Text>
+          <Text style={styles.errorText}>
+            The whisper.rn module requires a development build or EAS build to
+            function properly. It cannot run in Expo Go.
+          </Text>
+          <Text style={styles.errorText}>
+            To test real speech recognition:{"\n"}
+            1. Create a development build: `npx expo run:android` or `npx expo
+            run:ios`{"\n"}
+            2. Or build with EAS: `eas build --profile development`
+          </Text>
+          <Text style={styles.simulationText}>
+            For now, you can test the UI with simulated speech recognition.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  const handleError = (error: string) => {
+    log("Realtime Error:", error);
+  };
+
+  const handleStatusChange = (isActive: boolean) => {
+    setIsTranscribing(isActive);
+    log(`Realtime status: ${isActive ? "ACTIVE" : "INACTIVE"}`);
   };
 
   const startRealtimeTranscription = async () => {
@@ -261,7 +344,7 @@ export default function RealtimeTranscriberRoot() {
         },
         // Options
         {
-          logger: (message) => log(message),
+          logger: (message: any) => log(message),
           audioSliceSec: 300,
           audioMinSec: 0.5,
           maxSlicesInMemory: 1,
@@ -323,6 +406,9 @@ export default function RealtimeTranscriberRoot() {
     const { data, sliceIndex } = event;
 
     if (data?.result) {
+      // Update the latest transcription result
+      setTranscribeResult(data.result);
+
       // Get all transcription results from the transcriber
       const allResults = realtimeTranscriber?.getTranscriptionResults() || [];
       console.log({ allResults });
@@ -361,18 +447,6 @@ export default function RealtimeTranscriberRoot() {
       );
     }
   };
-
-  useEffect(() => {
-    initializeContexts();
-
-    return () => {
-      // Cleanup on unmount
-      console.log("Cleaning up...");
-      whisperContext?.release();
-      vadContext?.release();
-      realtimeTranscriber?.release();
-    };
-  }, []);
 
   return (
     <ScrollView
@@ -478,6 +552,36 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 4,
+  },
+  errorContainer: {
+    backgroundColor: "#fff3cd",
+    padding: 20,
+    borderRadius: 12,
+    marginVertical: 16,
+    width: "95%",
+    borderLeftWidth: 4,
+    borderLeftColor: "#ffc107",
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#856404",
+    marginBottom: 12,
+  },
+  errorText: {
+    fontSize: 14,
+    color: "#856404",
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  simulationText: {
+    fontSize: 14,
+    color: "#155724",
+    fontWeight: "600",
+    marginTop: 12,
+    padding: 8,
+    backgroundColor: "#d4edda",
+    borderRadius: 6,
   },
   loadingContainer: {
     backgroundColor: "#e3f2fd",
