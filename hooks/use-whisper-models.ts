@@ -10,8 +10,6 @@ import {
   type FileSystemDownloadResult,
 } from "expo-file-system/legacy";
 import { useCallback, useEffect, useState } from "react";
-import type { WhisperContext } from "whisper.rn/index.js";
-import { initWhisper, initWhisperVad } from "whisper.rn/index.js";
 
 export interface WhisperModel {
   id: string;
@@ -72,10 +70,7 @@ export function useWhisperModels() {
   >({});
   const [isDownloading, setIsDownloading] = useState(false);
   const [isInitializingModel, setIsInitializingModel] = useState(false);
-  const [whisperContext, setWhisperContext] = useState<WhisperContext | null>(
-    null
-  );
-  const [vadContext, setVadContext] = useState<any>(null);
+
   const [currentModelId, setCurrentModelId] = useState<string | null>(null);
 
   const getModelDirectory = useCallback(async () => {
@@ -206,7 +201,7 @@ export function useWhisperModels() {
   );
 
   const initializeWhisperModel = useCallback(
-    async (modelId: string, options?: { initVad?: boolean }) => {
+    async (modelId: string = "base") => {
       const model = WHISPER_MODELS.find((m) => m.id === modelId);
       if (!model) throw new Error("Invalid model selected");
 
@@ -217,34 +212,9 @@ export function useWhisperModels() {
         // Download model if not already available
         const modelPath = await downloadModel(model);
 
-        // Initialize Whisper context
-        const context = await initWhisper({
-          filePath: modelPath,
-        });
-
-        setWhisperContext(context);
         setCurrentModelId(modelId);
-        console.log(`Whisper context initialized for model: ${model.label}`);
 
-        // Optionally initialize VAD context
-        if (options?.initVad) {
-          console.log("Initializing VAD context...");
-          try {
-            const vad = await initWhisperVad({
-              filePath: modelPath,
-            });
-            setVadContext(vad);
-            console.log("VAD context initialized successfully");
-          } catch (vadError) {
-            console.warn("VAD initialization failed:", vadError);
-            // Continue without VAD - it's optional
-          }
-        }
-
-        return {
-          whisperContext: context,
-          vadContext: options?.initVad ? vadContext : null,
-        };
+        return modelPath;
       } catch (error) {
         console.error("Model initialization error:", error);
         throw error;
@@ -252,15 +222,8 @@ export function useWhisperModels() {
         setIsInitializingModel(false);
       }
     },
-    [downloadModel, vadContext]
+    [downloadModel]
   );
-
-  const resetWhisperContext = useCallback(() => {
-    setWhisperContext(null);
-    setVadContext(null);
-    setCurrentModelId(null);
-    console.log("Whisper contexts reset");
-  }, []);
 
   const getModelById = useCallback((modelId: string) => {
     return WHISPER_MODELS.find((m) => m.id === modelId);
@@ -314,24 +277,8 @@ export function useWhisperModels() {
         delete next[modelId];
         return next;
       });
-
-      if (currentModelId === modelId) {
-        if (whisperContext?.release) {
-          try {
-            await whisperContext.release();
-          } catch (releaseError) {
-            console.warn(
-              "Failed to release Whisper context during model deletion:",
-              releaseError
-            );
-          }
-        }
-        setWhisperContext(null);
-        setCurrentModelId(null);
-        setVadContext(null);
-      }
     },
-    [currentModelId, modelFiles, whisperContext]
+    [modelFiles]
   );
 
   useEffect(() => {
@@ -395,19 +342,19 @@ export function useWhisperModels() {
   }, [getModelDirectory]);
 
   return {
+    // Constants
+    availableModels: WHISPER_MODELS,
+
     // State
     modelFiles,
     downloadProgress,
     isDownloading,
     isInitializingModel,
-    whisperContext,
-    vadContext,
     currentModelId,
 
     // Actions
     downloadModel,
     initializeWhisperModel,
-    resetWhisperContext,
     deleteModel,
 
     // Helpers
@@ -415,8 +362,5 @@ export function useWhisperModels() {
     getCurrentModel,
     isModelDownloaded,
     getDownloadProgress,
-
-    // Constants
-    availableModels: WHISPER_MODELS,
   };
 }
