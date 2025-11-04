@@ -4,11 +4,11 @@ import {
 } from "expo-audio";
 import { useEffect, useState } from "react";
 import { Alert, Platform } from "react-native";
+import RNFS from "react-native-fs";
 import { initWhisper, initWhisperVad } from "whisper.rn/index.js";
-import { AudioPcmStreamAdapter } from "whisper.rn/realtime-transcription/adapters/AudioPcmStreamAdapter.js";
 import { RealtimeTranscriber } from "whisper.rn/realtime-transcription/index.js";
 import { useWhisperModels } from "./use-whisper-models";
-import RNFS from "react-native-fs";
+import { AudioPcmStreamAdapter } from "@/services/AudioPcmStreamAdapter";
 
 export function useWhisper() {
   const [isRealtimeActive, setIsRealtimeActive] = useState(false);
@@ -68,15 +68,11 @@ export function useWhisper() {
   };
 
   const initializeModels = async () => {
-    const [whisperFile, vadFile] = await Promise.all([
-      initializeWhisperModel(),
-      initializeWhisperVad(),
-    ]);
+    const whisperFile = await initializeWhisperModel();
+    const vadFile = await initializeWhisperVad();
 
-    const [whisperContext, vadContext] = await Promise.all([
-      initWhisper({ filePath: whisperFile }),
-      initWhisperVad({ filePath: vadFile }),
-    ]);
+    const whisperContext = await initWhisper({ filePath: whisperFile });
+    const vadContext = await initWhisperVad({ filePath: vadFile });
 
     return { whisperContext, vadContext };
   };
@@ -89,9 +85,13 @@ export function useWhisper() {
     whisperContext: any;
     vadContext: any;
   }) => {
-    const audioStream = new AudioPcmStreamAdapter();
     return new RealtimeTranscriber(
-      { whisperContext, vadContext, audioStream, fs: RNFS },
+      {
+        whisperContext,
+        vadContext,
+        audioStream: new AudioPcmStreamAdapter(),
+        fs: RNFS,
+      },
       {
         audioSliceSec: 30,
         vadPreset: "default",
@@ -128,7 +128,7 @@ export function useWhisper() {
         }
 
         const { whisperContext, vadContext } = await initializeModels();
-        // const tx = createTranscriber({ whisperContext, vadContext });
+        const tx = createTranscriber({ whisperContext, vadContext });
 
         // setTranscriber(tx);
       })
