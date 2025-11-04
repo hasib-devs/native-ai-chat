@@ -4,11 +4,11 @@ import {
 } from "expo-audio";
 import { useEffect, useState } from "react";
 import { Alert, Platform } from "react-native";
-import RNFS from "react-native-fs";
 import { initWhisper, initWhisperVad } from "whisper.rn/index.js";
 import { AudioPcmStreamAdapter } from "whisper.rn/realtime-transcription/adapters/AudioPcmStreamAdapter.js";
 import { RealtimeTranscriber } from "whisper.rn/realtime-transcription/index.js";
 import { useWhisperModels } from "./use-whisper-models";
+import RNFS from "react-native-fs";
 
 export function useWhisper() {
   const [isRealtimeActive, setIsRealtimeActive] = useState(false);
@@ -16,7 +16,7 @@ export function useWhisper() {
     null
   );
 
-  const { initializeWhisperModel } = useWhisperModels();
+  const { initializeWhisperModel, initializeWhisperVad } = useWhisperModels();
 
   const ensureMicrophonePermission = async (): Promise<boolean> => {
     if (Platform.OS === "web") {
@@ -58,13 +58,62 @@ export function useWhisper() {
       console.warn("Microphone permission not granted:", permissionStatus);
       return false;
     } catch (err) {
-      console.error("Failed to verify microphone permission:", err);
+      console.log("Failed to verify microphone permission:", err);
       Alert.alert(
         "Microphone Permission",
         "Unable to verify microphone permission. Please try again."
       );
       return false;
     }
+  };
+
+  const initializeModels = async () => {
+    const [whisperFile, vadFile] = await Promise.all([
+      initializeWhisperModel(),
+      initializeWhisperVad(),
+    ]);
+
+    const [whisperContext, vadContext] = await Promise.all([
+      initWhisper({ filePath: whisperFile }),
+      initWhisperVad({ filePath: vadFile }),
+    ]);
+
+    return { whisperContext, vadContext };
+  };
+
+  // Create transcriber
+  const createTranscriber = ({
+    whisperContext,
+    vadContext,
+  }: {
+    whisperContext: any;
+    vadContext: any;
+  }) => {
+    const audioStream = new AudioPcmStreamAdapter();
+    return new RealtimeTranscriber(
+      { whisperContext, vadContext, audioStream, fs: RNFS },
+      {
+        audioSliceSec: 30,
+        vadPreset: "default",
+        autoSliceOnSpeechEnd: true,
+        transcribeOptions: { language: "en" },
+      },
+      {
+        onTranscribe: (event) => {
+          console.log("Transcription:", event.data?.result);
+        },
+        onVad: (event) => {
+          console.log("VAD:", event.type, event.confidence);
+        },
+        onStatusChange: (isActive) => {
+          setIsRealtimeActive(isActive);
+          console.log("Status:", isActive ? "ACTIVE" : "INACTIVE");
+        },
+        onError: (error) => {
+          console.error("Error:", error);
+        },
+      }
+    );
   };
 
   useEffect(() => {
@@ -78,75 +127,25 @@ export function useWhisper() {
           return;
         }
 
-        try {
-          const filePath = await initializeWhisperModel("base");
+        const { whisperContext, vadContext } = await initializeModels();
+        // const tx = createTranscriber({ whisperContext, vadContext });
 
-          if (!filePath) {
-            throw new Error("Failed to initialize Whisper model.");
-          }
-
-          const whisperContext = await initWhisper({
-            filePath,
-          });
-          const vadContext = await initWhisperVad({
-            filePath,
-          });
-
-          if (!whisperContext || !vadContext) {
-            throw new Error("Failed to initialize Whisper or VAD context.");
-          }
-
-          const audioStream = new AudioPcmStreamAdapter();
-
-          // Create transcriber
-          const tx = new RealtimeTranscriber(
-            { whisperContext, vadContext, audioStream, fs: RNFS },
-            {
-              audioSliceSec: 300,
-              vadPreset: "default",
-              autoSliceOnSpeechEnd: true,
-              transcribeOptions: { language: "en" },
-            },
-            {
-              onTranscribe: (event) => {
-                console.log("Transcription:", event.data?.result);
-              },
-              onVad: (event) => {
-                console.log("VAD:", event.type, event.confidence);
-              },
-              onStatusChange: (isActive) => {
-                console.log("Status:", isActive ? "ACTIVE" : "INACTIVE");
-                setIsRealtimeActive(isActive);
-              },
-              onError: (error) => {
-                console.error("Error:", error);
-              },
-            }
-          );
-
-          tx.start();
-          setTranscriber(tx);
-        } catch (error) {
-          Alert.alert(
-            "Model Initialization Error",
-            "Failed to initialize the Whisper model. Please try again."
-          );
-          console.error("Error initializing Whisper model:", error);
-        }
+        // setTranscriber(tx);
       })
       .catch((error) => {
-        console.error(
+        console.log(
           "Error during microphone permission or model initialization:",
           error
         );
       });
-
     return () => {
       if (transcriber) {
         transcriber.stop();
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
   return {
     transcriber,
     isRealtimeActive,

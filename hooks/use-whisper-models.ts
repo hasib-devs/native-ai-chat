@@ -16,16 +16,16 @@ export interface WhisperModel {
   label: string;
   url: string;
   filename: string;
-  capabilities: {
-    multilingual: boolean;
-    quantizable: boolean;
+  capabilities?: {
+    multilingual?: boolean;
+    quantizable?: boolean;
     tdrz?: boolean; // Optional TDRZ capability for native models
   };
 }
 
-export const WHISPER_MODELS: WhisperModel[] = [
+const WHISPER_MODELS: WhisperModel[] = [
   {
-    id: "tiny",
+    id: "ggml-tiny",
     label: "Tiny (en)",
     url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin",
     filename: "ggml-tiny.en.bin",
@@ -35,7 +35,7 @@ export const WHISPER_MODELS: WhisperModel[] = [
     },
   },
   {
-    id: "base",
+    id: "ggml-base",
     label: "Base Model",
     url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
     filename: "ggml-base.bin",
@@ -44,18 +44,19 @@ export const WHISPER_MODELS: WhisperModel[] = [
       quantizable: false,
     },
   },
+
   {
-    id: "small",
-    label: "Small Model",
-    url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin",
-    filename: "ggml-small.bin",
+    id: "silero-v5.1.2",
+    label: "Silero VAD v5.1.2",
+    // url: "https://huggingface.co/ggml-org/silero-v5.1.2/blob/main/ggml-silero-v5.1.2.bin",
+    url: "https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v5.1.2.bin",
+    filename: "ggml-silero-v5.1.2.bin",
     capabilities: {
       multilingual: true,
       quantizable: false,
     },
   },
 ];
-
 interface ModelFileInfo {
   path: string;
   size: number;
@@ -201,7 +202,7 @@ export function useWhisperModels() {
   );
 
   const initializeWhisperModel = useCallback(
-    async (modelId: string = "base") => {
+    async (modelId: string = "ggml-base") => {
       const model = WHISPER_MODELS.find((m) => m.id === modelId);
       if (!model) throw new Error("Invalid model selected");
 
@@ -220,6 +221,26 @@ export function useWhisperModels() {
         throw error;
       } finally {
         setIsInitializingModel(false);
+      }
+    },
+    [downloadModel]
+  );
+
+  const initializeWhisperVad = useCallback(
+    async (modelId: string = "silero-v5.1.2") => {
+      const model = WHISPER_MODELS.find((m) => m.id === modelId);
+      if (!model) throw new Error("Invalid VAD model selected");
+
+      try {
+        console.log(`Initializing Whisper VAD model: ${model.label}`);
+
+        // Download model if not already available
+        const modelPath = await downloadModel(model);
+
+        return modelPath;
+      } catch (error) {
+        console.error("VAD Model initialization error:", error);
+        throw error;
       }
     },
     [downloadModel]
@@ -355,6 +376,7 @@ export function useWhisperModels() {
     // Actions
     downloadModel,
     initializeWhisperModel,
+    initializeWhisperVad,
     deleteModel,
 
     // Helpers

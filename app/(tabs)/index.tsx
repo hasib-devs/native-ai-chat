@@ -42,16 +42,16 @@ export default function ChatScreen() {
               <View style={styles.inputToolbar}>
                 <Pressable
                   style={styles.touchable}
-                  onPress={() => {
-                    console.log("Start...");
-                    if (transcriber) {
-                      if (isRealtimeActive) {
-                        transcriber.stop();
-                      } else {
-                        transcriber.start();
-                      }
-                    }
-                  }}
+                  // onPress={() => {
+                  //   console.log("Start...");
+                  //   if (transcriber) {
+                  //     if (isRealtimeActive) {
+                  //       transcriber.stop();
+                  //     } else {
+                  //       transcriber.start();
+                  //     }
+                  //   }
+                  // }}
                 >
                   <MicButton />
                 </Pressable>
