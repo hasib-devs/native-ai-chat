@@ -1,12 +1,14 @@
-import RealtimeTranscriberRoot from "@/components/core/RealtimeTranscriber";
 import { ThemedView } from "@/components/themed-view";
 import { StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ChatScreen() {
   return (
-    <ThemedView style={styles.container}>
-      <RealtimeTranscriberRoot />
-    </ThemedView>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "red" }}>
+      <ThemedView style={styles.container}>
+        <ChatScreen />
+      </ThemedView>
+    </SafeAreaView>
   );
 }
 
