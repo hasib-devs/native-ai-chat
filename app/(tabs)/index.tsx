@@ -1,14 +1,12 @@
+import ChatScreen from "@/components/core/chat-screen";
 import { ThemedView } from "@/components/themed-view";
 import { StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
-export default function ChatScreen() {
+export default function ChatRoot() {
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "red" }}>
-      <ThemedView style={styles.container}>
-        <ChatScreen />
-      </ThemedView>
-    </SafeAreaView>
+    <ThemedView style={styles.container}>
+      <ChatScreen />
+    </ThemedView>
   );
 }
 
