@@ -144,4 +144,3 @@ class TextToSpeechService {
 
 // Export singleton instance
 export const textToSpeechService = new TextToSpeechService();
-export default textToSpeechService;

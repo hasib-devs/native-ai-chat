@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import textToSpeechService from "../services/speech/text-to-speech.service";
+import { textToSpeechService } from "../services/speech/text-to-speech.service";
 import { TextToSpeechOptions } from "../types/voice.types";
 
 interface UseTextToSpeechReturn {
