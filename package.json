@@ -13,7 +13,8 @@
     "prebuild:clean": "expo prebuild --clean",
     "type-check": "tsc --noEmit",
     "watchman:clean": "watchman watch-del .",
-    "clean": "rm -rf node_modules/ .expo/ android/ ios/ && rm pnpm-lock.yaml && watchman watch-del ."
+    "clean": "rm -rf node_modules/ .expo/ android/ ios/ && rm pnpm-lock.yaml && watchman watch-del .",
+    "clean:gradle": "cd android && ./gradlew clean && cd .. && pnpm android"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

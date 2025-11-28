@@ -36,13 +36,20 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
 
   // Check availability on mount
   useEffect(() => {
-    speechToTextService.isAvailable().then((available) => {
+    const checkAvailability = async () => {
+      console.log("Checking speech recognition availability in hook...");
+      const available = await speechToTextService.isAvailable();
+      console.log("Speech recognition available in hook:", available);
       if (isMounted.current) {
         setIsAvailable(available);
       }
-    });
+    };
+
+    // Add a delay to ensure native modules are initialized
+    const timer = setTimeout(checkAvailability, 200);
 
     return () => {
+      clearTimeout(timer);
       isMounted.current = false;
     };
   }, []);

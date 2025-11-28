@@ -4,6 +4,7 @@ import Voice, {
   SpeechStartEvent,
   SpeechEndEvent,
 } from "@react-native-voice/voice";
+import { Platform, PermissionsAndroid } from "react-native";
 import { SpeechRecognitionOptions } from "../../types/voice.types";
 
 /**
@@ -19,9 +20,11 @@ class SpeechToTextService {
   private onErrorCallback?: (error: string) => void;
   private onStartCallback?: () => void;
   private onEndCallback?: () => void;
+  private hasPermissions = false;
 
   constructor() {
     this.initializeEvents();
+    this.checkAndRequestPermissions();
   }
 
   /**
@@ -100,12 +103,58 @@ class SpeechToTextService {
   }
 
   /**
+   * Check and request permissions for Android
+   */
+  private async checkAndRequestPermissions(): Promise<void> {
+    if (Platform.OS === "android") {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+          {
+            title: "Microphone Permission",
+            message:
+              "This app needs access to your microphone for voice conversations.",
+            buttonNeutral: "Ask Me Later",
+            buttonNegative: "Cancel",
+            buttonPositive: "OK",
+          }
+        );
+        this.hasPermissions = granted === PermissionsAndroid.RESULTS.GRANTED;
+        console.log("Microphone permission:", granted);
+      } catch (err) {
+        console.error("Error requesting permissions:", err);
+        this.hasPermissions = false;
+      }
+    } else {
+      // iOS permissions are handled through Info.plist
+      this.hasPermissions = true;
+    }
+  }
+
+  /**
    * Check if speech recognition is available
    */
   async isAvailable(): Promise<boolean> {
     try {
-      const available = await Voice.isAvailable();
-      return available === 1;
+      console.log("Checking speech recognition availability...");
+
+      // Check permissions first
+      if (Platform.OS === "android" && !this.hasPermissions) {
+        await this.checkAndRequestPermissions();
+      }
+
+      // @react-native-voice/voice doesn't have a reliable isAvailable() method
+      // The best way to check is to see if we can access the module
+      // For Android, we just check permissions. For iOS, we assume it's available
+      if (Platform.OS === "android") {
+        const isAvailable = this.hasPermissions;
+        console.log("Speech recognition available (Android):", isAvailable);
+        return isAvailable;
+      } else {
+        // iOS - speech recognition is available if the app has proper permissions in Info.plist
+        console.log("Speech recognition available (iOS): true");
+        return true;
+      }
     } catch (error) {
       console.error("Error checking voice availability:", error);
       return false;
@@ -117,8 +166,19 @@ class SpeechToTextService {
    */
   async startListening(options?: SpeechRecognitionOptions): Promise<void> {
     try {
+      console.log("Starting speech recognition...");
+
+      // Check permissions for Android
+      if (Platform.OS === "android" && !this.hasPermissions) {
+        await this.checkAndRequestPermissions();
+        if (!this.hasPermissions) {
+          throw new Error("Microphone permission not granted");
+        }
+      }
+
       // Stop any existing session
       if (this.isListeningNow) {
+        console.log("Stopping existing session before starting new one...");
         await this.stopListening();
       }
 
@@ -126,7 +186,12 @@ class SpeechToTextService {
       this.partialResults = [];
       this.finalResult = "";
 
-      // Start recognition
+      console.log(
+        "Starting Voice.start() with language:",
+        options?.language || "en-US"
+      );
+
+      // Start recognition - if it's not available, this will throw an error
       await Voice.start(options?.language || "en-US", {
         EXTRA_PARTIAL_RESULTS: options?.interimResults ?? true,
         EXTRA_MAX_RESULTS: options?.maxAlternatives ?? 5,
@@ -134,6 +199,7 @@ class SpeechToTextService {
         EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 1500,
       });
 
+      console.log("Voice.start() completed successfully");
       this.isListeningNow = true;
     } catch (error) {
       console.error("Error starting speech recognition:", error);
