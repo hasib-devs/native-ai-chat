@@ -129,23 +129,27 @@ const ChatScreen = () => {
   };
 
   const handleRecord = () => {
-    const recorder = new AudioRecorder({
-      sampleRate: 16000,
-      bufferLengthInSamples: 16000,
-    });
+    try {
+      const recorder = new AudioRecorder({
+        sampleRate: 16000,
+        bufferLengthInSamples: 16000,
+      });
 
-    recorder.onAudioReady((event) => {
-      const { buffer, numFrames, when } = event;
+      recorder.onAudioReady((event) => {
+        const { buffer, numFrames, when } = event;
 
-      console.log(
-        "Audio recorder buffer ready:",
-        buffer.duration,
-        numFrames,
-        when
-      );
-    });
+        console.log(
+          "Audio recorder buffer ready:",
+          buffer.duration,
+          numFrames,
+          when
+        );
+      });
 
-    recorder.start();
+      recorder.start();
+    } catch {
+      console.log("Failed to start recorder");
+    }
   };
 
   return (
