@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useAudioRecorder, RecordingPresets } from "expo-audio";
 import { speechToTextService } from "../services/speech/speech-to-text.service";
+import { audioRecorderService } from "../services/speech/audio-recorder.service";
 import { SpeechRecognitionOptions } from "../types/voice.types";
 
 interface UseSpeechRecognitionReturn {
   transcript: string;
-  partialTranscript: string;
   isListening: boolean;
   isAvailable: boolean;
   error: string | null;
@@ -28,133 +29,93 @@ interface UseSpeechRecognitionReturn {
  */
 export function useSpeechRecognition(): UseSpeechRecognitionReturn {
   const [transcript, setTranscript] = useState("");
-  const [partialTranscript, setPartialTranscript] = useState("");
-  const [isListening, setIsListening] = useState(false);
-  const [isAvailable, setIsAvailable] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isMounted = useRef(true);
 
-  // Check availability on mount
+  // Use expo-audio's hook for recording
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+
+  const isListening = audioRecorder.isRecording;
+  const [isAvailable, setIsAvailable] = useState(true); // expo-audio handles permissions
+
+  // Sync recording state with service
   useEffect(() => {
-    const checkAvailability = async () => {
-      console.log("Checking speech recognition availability in hook...");
-      const available = await speechToTextService.isAvailable();
-      console.log("Speech recognition available in hook:", available);
-      if (isMounted.current) {
-        setIsAvailable(available);
-      }
-    };
-
-    // Add a delay to ensure native modules are initialized
-    const timer = setTimeout(checkAvailability, 200);
-
-    return () => {
-      clearTimeout(timer);
-      isMounted.current = false;
-    };
-  }, []);
-
-  // Setup event listeners
-  useEffect(() => {
-    // Add a small delay to ensure native modules are fully initialized
-    const setupListeners = () => {
-      speechToTextService.onPartialResult((text) => {
-        if (isMounted.current) {
-          setPartialTranscript(text);
-        }
-      });
-
-      speechToTextService.onFinalResult((text) => {
-        if (isMounted.current) {
-          setTranscript(text);
-          setPartialTranscript("");
-        }
-      });
-
-      speechToTextService.onError((errorMessage) => {
-        if (isMounted.current) {
-          setError(errorMessage);
-          setIsListening(false);
-        }
-      });
-
-      speechToTextService.onStart(() => {
-        if (isMounted.current) {
-          setIsListening(true);
-          setError(null);
-        }
-      });
-
-      speechToTextService.onEnd(() => {
-        if (isMounted.current) {
-          setIsListening(false);
-        }
-      });
-    };
-
-    const timer = setTimeout(setupListeners, 100);
-
-    return () => {
-      clearTimeout(timer);
-      speechToTextService.destroy();
-    };
-  }, []);
-
+    audioRecorderService.setRecording(
+      audioRecorder.isRecording,
+      audioRecorder.uri || undefined
+    );
+  }, [audioRecorder.isRecording, audioRecorder.uri]);
   const startListening = useCallback(
     async (options?: SpeechRecognitionOptions): Promise<void> => {
       try {
+        console.log("Starting audio recording...");
         setError(null);
         setTranscript("");
-        setPartialTranscript("");
-        await speechToTextService.startListening(options);
+        await audioRecorder.record();
+        console.log("Recording started successfully");
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : "Failed to start listening";
+        console.error("Error starting recording:", errorMessage);
         setError(errorMessage);
-        setIsListening(false);
         throw err;
       }
     },
-    []
+    [audioRecorder]
   );
 
   const stopListening = useCallback(async (): Promise<string> => {
     try {
-      const finalText = await speechToTextService.stopListening();
-      setIsListening(false);
+      console.log("Stopping audio recording...");
+      await audioRecorder.stop();
+      const uri = audioRecorder.uri;
+      console.log("Recording stopped. URI:", uri);
+
+      if (!uri) {
+        throw new Error("No audio recorded");
+      }
+
+      // Transcribe audio (if API is configured)
+      console.log("Transcribing audio...");
+      const finalText = await speechToTextService.transcribeAudioFile(uri);
+      setTranscript(finalText);
+      console.log("Transcription complete:", finalText);
+
       return finalText;
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to stop listening";
+      console.error("Error stopping recording:", errorMessage);
       setError(errorMessage);
-      setIsListening(false);
       throw err;
     }
-  }, []);
+  }, [audioRecorder]);
 
   const cancelListening = useCallback(async (): Promise<void> => {
     try {
-      await speechToTextService.cancelListening();
-      setIsListening(false);
+      console.log("Canceling audio recording...");
+      await audioRecorder.stop();
+      const uri = audioRecorder.uri;
+      if (uri) {
+        await audioRecorderService.deleteAudioFile(uri);
+      }
       setTranscript("");
-      setPartialTranscript("");
       setError(null);
+      console.log("Recording canceled");
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to cancel";
+      console.error("Error canceling:", errorMessage);
       setError(errorMessage);
     }
-  }, []);
+  }, [audioRecorder]);
 
   const resetTranscript = useCallback(() => {
     setTranscript("");
-    setPartialTranscript("");
     setError(null);
   }, []);
 
   return {
     transcript,
-    partialTranscript,
     isListening,
     isAvailable,
     error,

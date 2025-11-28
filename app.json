@@ -38,10 +38,9 @@
     "plugins": [
       "expo-router",
       [
-        "@react-native-voice/voice",
+        "expo-audio",
         {
-          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for voice conversations and English practice.",
-          "speechRecognitionPermission": "Allow $(PRODUCT_NAME) to securely recognize user speech for real-time conversation practice."
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for voice conversations and English practice."
         }
       ],
       [
@@ -55,7 +54,7 @@
             "backgroundColor": "#000000"
           }
         }
-      ],
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

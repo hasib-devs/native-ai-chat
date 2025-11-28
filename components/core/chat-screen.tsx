@@ -30,7 +30,6 @@ const ChatScreen = () => {
     stopListening,
     isListening,
     transcript,
-    partialTranscript,
     error: speechError,
     isAvailable: speechAvailable,
   } = useSpeechRecognition();
@@ -334,11 +333,11 @@ const ChatScreen = () => {
         {getSubtitleText()}
       </Text>
 
-      {/* Real-time transcript display */}
-      {partialTranscript && voiceState === "listening" && (
+      {/* Recording indicator */}
+      {voiceState === "listening" && (
         <View style={styles.transcriptContainer}>
           <Text style={[styles.transcriptText, { color: colors.text }]}>
-            {partialTranscript}
+            Recording...
           </Text>
         </View>
       )}

@@ -1,330 +1,79 @@
-import Voice, {
-  SpeechResultsEvent,
-  SpeechErrorEvent,
-  SpeechStartEvent,
-  SpeechEndEvent,
-} from "@react-native-voice/voice";
-import { Platform, PermissionsAndroid } from "react-native";
-import { SpeechRecognitionOptions } from "../../types/voice.types";
-
 /**
- * Speech-to-Text Service using @react-native-voice/voice
- * Handles real-time speech recognition
+ * Speech-to-Text Service using audio recording + API transcription
+ * Handles transcription of audio files via API
+ *
+ * Note: Recording is handled by expo-audio hook in use-speech-recognition.ts
+ * This service only handles the transcription part.
  */
 class SpeechToTextService {
-  private isListeningNow = false;
-  private partialResults: string[] = [];
-  private finalResult = "";
-  private onPartialResultCallback?: (text: string) => void;
-  private onFinalResultCallback?: (text: string) => void;
-  private onErrorCallback?: (error: string) => void;
-  private onStartCallback?: () => void;
-  private onEndCallback?: () => void;
-  private hasPermissions = false;
+  // API Configuration - Replace with your STT API
+  private apiEndpoint = ""; // e.g., "https://api.openai.com/v1/audio/transcriptions"
+  private apiKey = ""; // Set your API key
 
-  constructor() {
-    this.initializeEvents();
-    this.checkAndRequestPermissions();
+  /**
+   * Set API configuration
+   */
+  setApiConfig(endpoint: string, apiKey: string): void {
+    this.apiEndpoint = endpoint;
+    this.apiKey = apiKey;
   }
 
   /**
-   * Initialize voice recognition events
+   * Transcribe audio file using API
+   * This is the main method used by the expo-audio hook
    */
-  private initializeEvents(): void {
-    Voice.onSpeechStart = this.onSpeechStart.bind(this);
-    Voice.onSpeechEnd = this.onSpeechEnd.bind(this);
-    Voice.onSpeechResults = this.onSpeechResults.bind(this);
-    Voice.onSpeechPartialResults = this.onSpeechPartialResults.bind(this);
-    Voice.onSpeechError = this.onSpeechError.bind(this);
-  }
-
-  /**
-   * Handle speech start event
-   */
-  private onSpeechStart(event: SpeechStartEvent): void {
-    console.log("Speech recognition started", event);
-    this.isListeningNow = true;
-    if (this.onStartCallback) {
-      this.onStartCallback();
-    }
-  }
-
-  /**
-   * Handle speech end event
-   */
-  private onSpeechEnd(event: SpeechEndEvent): void {
-    console.log("Speech recognition ended", event);
-    this.isListeningNow = false;
-    if (this.onEndCallback) {
-      this.onEndCallback();
-    }
-  }
-
-  /**
-   * Handle final speech results
-   */
-  private onSpeechResults(event: SpeechResultsEvent): void {
-    const results = event.value || [];
-    console.log("Speech results:", results);
-
-    if (results.length > 0) {
-      this.finalResult = results[0];
-      if (this.onFinalResultCallback) {
-        this.onFinalResultCallback(this.finalResult);
-      }
-    }
-  }
-
-  /**
-   * Handle partial speech results (real-time transcription)
-   */
-  private onSpeechPartialResults(event: SpeechResultsEvent): void {
-    const results = event.value || [];
-    console.log("Partial results:", results);
-
-    if (results.length > 0) {
-      this.partialResults = results;
-      if (this.onPartialResultCallback) {
-        this.onPartialResultCallback(results[0]);
-      }
-    }
-  }
-
-  /**
-   * Handle speech recognition errors
-   */
-  private onSpeechError(event: SpeechErrorEvent): void {
-    console.error("Speech recognition error:", event.error);
-    this.isListeningNow = false;
-
-    if (this.onErrorCallback) {
-      this.onErrorCallback(event.error?.message || "Unknown error");
-    }
-  }
-
-  /**
-   * Check and request permissions for Android
-   */
-  private async checkAndRequestPermissions(): Promise<void> {
-    if (Platform.OS === "android") {
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
-          {
-            title: "Microphone Permission",
-            message:
-              "This app needs access to your microphone for voice conversations.",
-            buttonNeutral: "Ask Me Later",
-            buttonNegative: "Cancel",
-            buttonPositive: "OK",
-          }
-        );
-        this.hasPermissions = granted === PermissionsAndroid.RESULTS.GRANTED;
-        console.log("Microphone permission:", granted);
-      } catch (err) {
-        console.error("Error requesting permissions:", err);
-        this.hasPermissions = false;
-      }
-    } else {
-      // iOS permissions are handled through Info.plist
-      this.hasPermissions = true;
-    }
-  }
-
-  /**
-   * Check if speech recognition is available
-   */
-  async isAvailable(): Promise<boolean> {
+  async transcribeAudioFile(uri: string): Promise<string> {
     try {
-      console.log("Checking speech recognition availability...");
+      console.log("Transcribing audio file:", uri);
 
-      // Check permissions first
-      if (Platform.OS === "android" && !this.hasPermissions) {
-        await this.checkAndRequestPermissions();
+      // If API is configured, use it
+      if (this.apiEndpoint && this.apiKey) {
+        return await this.transcribeWithApi(uri);
       }
 
-      // @react-native-voice/voice doesn't have a reliable isAvailable() method
-      // The best way to check is to see if we can access the module
-      // For Android, we just check permissions. For iOS, we assume it's available
-      if (Platform.OS === "android") {
-        const isAvailable = this.hasPermissions;
-        console.log("Speech recognition available (Android):", isAvailable);
-        return isAvailable;
-      } else {
-        // iOS - speech recognition is available if the app has proper permissions in Info.plist
-        console.log("Speech recognition available (iOS): true");
-        return true;
-      }
+      // For demo purposes, return a placeholder
+      console.warn("No STT API configured. Using demo transcript.");
+      return "Demo transcript - Configure your STT API to get real transcription";
     } catch (error) {
-      console.error("Error checking voice availability:", error);
-      return false;
+      console.error("Error transcribing audio:", error);
+      throw error;
     }
   }
 
   /**
-   * Start listening for speech
+   * Transcribe audio file using configured API
+   * Replace this with your preferred STT API implementation
    */
-  async startListening(options?: SpeechRecognitionOptions): Promise<void> {
+  private async transcribeWithApi(uri: string): Promise<string> {
     try {
-      console.log("Starting speech recognition...");
+      // Example implementation for OpenAI Whisper API
+      // You'll need to adapt this for your chosen API
 
-      // Check permissions for Android
-      if (Platform.OS === "android" && !this.hasPermissions) {
-        await this.checkAndRequestPermissions();
-        if (!this.hasPermissions) {
-          throw new Error("Microphone permission not granted");
-        }
-      }
+      const formData = new FormData();
+      formData.append("file", {
+        uri,
+        type: "audio/m4a",
+        name: "audio.m4a",
+      } as any);
+      formData.append("model", "whisper-1");
 
-      // Stop any existing session
-      if (this.isListeningNow) {
-        console.log("Stopping existing session before starting new one...");
-        await this.stopListening();
-      }
-
-      // Reset results
-      this.partialResults = [];
-      this.finalResult = "";
-
-      console.log(
-        "Starting Voice.start() with language:",
-        options?.language || "en-US"
-      );
-
-      // Start recognition - if it's not available, this will throw an error
-      await Voice.start(options?.language || "en-US", {
-        EXTRA_PARTIAL_RESULTS: options?.interimResults ?? true,
-        EXTRA_MAX_RESULTS: options?.maxAlternatives ?? 5,
-        EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 2000,
-        EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 1500,
+      const response = await fetch(this.apiEndpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: formData,
       });
 
-      console.log("Voice.start() completed successfully");
-      this.isListeningNow = true;
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.text || "";
     } catch (error) {
-      console.error("Error starting speech recognition:", error);
-      this.isListeningNow = false;
+      console.error("Error transcribing with API:", error);
       throw error;
-    }
-  }
-
-  /**
-   * Stop listening and return final result
-   */
-  async stopListening(): Promise<string> {
-    try {
-      await Voice.stop();
-      this.isListeningNow = false;
-      return this.finalResult;
-    } catch (error) {
-      console.error("Error stopping speech recognition:", error);
-      this.isListeningNow = false;
-      throw error;
-    }
-  }
-
-  /**
-   * Cancel listening without returning result
-   */
-  async cancelListening(): Promise<void> {
-    try {
-      await Voice.cancel();
-      this.isListeningNow = false;
-      this.partialResults = [];
-      this.finalResult = "";
-    } catch (error) {
-      console.error("Error canceling speech recognition:", error);
-      this.isListeningNow = false;
-    }
-  }
-
-  /**
-   * Destroy the speech recognition instance
-   */
-  async destroy(): Promise<void> {
-    try {
-      await Voice.destroy();
-      this.isListeningNow = false;
-      this.partialResults = [];
-      this.finalResult = "";
-      this.onPartialResultCallback = undefined;
-      this.onFinalResultCallback = undefined;
-      this.onErrorCallback = undefined;
-      this.onStartCallback = undefined;
-      this.onEndCallback = undefined;
-    } catch (error) {
-      console.error("Error destroying speech recognition:", error);
-    }
-  }
-
-  /**
-   * Check if currently listening
-   */
-  isListening(): boolean {
-    return this.isListeningNow;
-  }
-
-  /**
-   * Get partial results
-   */
-  getPartialResults(): string[] {
-    return this.partialResults;
-  }
-
-  /**
-   * Get final result
-   */
-  getFinalResult(): string {
-    return this.finalResult;
-  }
-
-  /**
-   * Set callback for partial results
-   */
-  onPartialResult(callback: (text: string) => void): void {
-    this.onPartialResultCallback = callback;
-  }
-
-  /**
-   * Set callback for final result
-   */
-  onFinalResult(callback: (text: string) => void): void {
-    this.onFinalResultCallback = callback;
-  }
-
-  /**
-   * Set callback for errors
-   */
-  onError(callback: (error: string) => void): void {
-    this.onErrorCallback = callback;
-  }
-
-  /**
-   * Set callback for start event
-   */
-  onStart(callback: () => void): void {
-    this.onStartCallback = callback;
-  }
-
-  /**
-   * Set callback for end event
-   */
-  onEnd(callback: () => void): void {
-    this.onEndCallback = callback;
-  }
-
-  /**
-   * Get supported languages (if available)
-   */
-  async getSupportedLanguages(): Promise<string[]> {
-    try {
-      // This method may not be available in all versions
-      // @ts-ignore - Method availability varies by platform
-      const languages = await Voice.getSupportedLanguages?.();
-      return languages || [];
-    } catch (error) {
-      console.error("Error getting supported languages:", error);
-      return [];
     }
   }
 }
