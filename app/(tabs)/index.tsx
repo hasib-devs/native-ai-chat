@@ -1,12 +1,11 @@
 import ChatScreen from "@/components/core/chat-screen";
 import { ThemedView } from "@/components/themed-view";
 import React from "react";
-import { StyleSheet, Text } from "react-native";
+import { StyleSheet } from "react-native";
 
 export default function ChatRoot() {
   return (
     <ThemedView style={styles.container}>
-      <Text>ChatScreen is currently disabled for demonstration purposes.</Text>
       <ChatScreen />
     </ThemedView>
   );

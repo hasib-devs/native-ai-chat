@@ -13,8 +13,7 @@ import {
 import { Colors } from "../../constants/theme";
 import { useTextToSpeech } from "../../hooks/use-text-to-speech";
 import { useSpeechRecognition } from "../../hooks/use-speech-recognition";
-
-type VoiceState = "idle" | "listening" | "speaking" | "processing";
+import { VoiceState } from "@/types/voice.types";
 
 const ChatScreen = () => {
   const colorScheme = useColorScheme();
@@ -332,15 +331,6 @@ const ChatScreen = () => {
       <Text style={[styles.subtitleText, { color: colors.icon }]}>
         {getSubtitleText()}
       </Text>
-
-      {/* Recording indicator */}
-      {voiceState === "listening" && (
-        <View style={styles.transcriptContainer}>
-          <Text style={[styles.transcriptText, { color: colors.text }]}>
-            Recording...
-          </Text>
-        </View>
-      )}
 
       {/* Final transcript display */}
       {userTranscript && voiceState !== "idle" && (
