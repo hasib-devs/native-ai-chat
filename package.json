@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "scripts": {
     "start": "watchman watch-del . && expo start",
-    "android": "expo run:android",
-    "ios": "expo run:ios",
+    "android": "watchman watch-del . && expo run:android",
+    "ios": "watchman watch-del . && expo run:ios",
     "lint": "expo lint",
     "prebuild:android": "expo prebuild --platform android",
     "prebuild:ios": "expo prebuild --platform ios",
