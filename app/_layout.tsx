@@ -17,13 +17,6 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
-  // useEffect(() => {
-  //   // Ignore specific warnings during development
-  //   LogBox.ignoreLogs([
-  //     "Failed to call into JavaScript module method RCTEventEmitter",
-  //   ]);
-  // }, []);
-
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Stack

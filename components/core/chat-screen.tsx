@@ -7,31 +7,17 @@ import {
   TouchableOpacity,
   useColorScheme,
   View,
-  Alert,
 } from "react-native";
 
 import { Colors } from "../../constants/theme";
-import { useTextToSpeech } from "../../hooks/use-text-to-speech";
-import { useSpeechRecognition } from "../../hooks/use-speech-recognition";
-import { VoiceState } from "@/types/voice.types";
+
+type VoiceState = "idle" | "listening" | "speaking";
 
 const ChatScreen = () => {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
 
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
-  const [userTranscript, setUserTranscript] = useState("");
-
-  // Voice hooks
-  const { speak, isSpeaking, stop: stopSpeaking } = useTextToSpeech();
-  const {
-    startListening,
-    stopListening,
-    isListening,
-    transcript,
-    error: speechError,
-    isAvailable: speechAvailable,
-  } = useSpeechRecognition();
 
   //  Animation values
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -114,95 +100,10 @@ const ChatScreen = () => {
     outputRange: ["0deg", "360deg"],
   });
 
-  // Check speech recognition availability
-  useEffect(() => {
-    if (!speechAvailable) {
-      Alert.alert(
-        "Speech Recognition Unavailable",
-        "Speech recognition is not available on this device."
-      );
-    }
-  }, [speechAvailable]);
-
-  // Update voice state based on hooks
-  useEffect(() => {
-    if (isListening) {
+  const toggleVoiceState = () => {
+    if (voiceState === "idle") {
       setVoiceState("listening");
-    } else if (isSpeaking) {
-      setVoiceState("speaking");
-    }
-  }, [isListening, isSpeaking]);
-
-  // Update user transcript when speech recognition completes
-  useEffect(() => {
-    if (transcript) {
-      setUserTranscript(transcript);
-    }
-  }, [transcript]);
-
-  // Show errors
-  useEffect(() => {
-    if (speechError) {
-      console.error("Speech error:", speechError);
-    }
-  }, [speechError]);
-
-  const toggleVoiceState = async () => {
-    try {
-      if (voiceState === "idle") {
-        // Start listening with speech recognition
-        if (!speechAvailable) {
-          Alert.alert(
-            "Not Available",
-            "Speech recognition is not available on this device."
-          );
-          return;
-        }
-
-        await startListening({
-          language: "en-US",
-          interimResults: true,
-        });
-      } else if (voiceState === "listening") {
-        // Stop listening and get transcript
-        const finalTranscript = await stopListening();
-
-        if (finalTranscript && finalTranscript.trim()) {
-          setVoiceState("processing");
-          setUserTranscript(finalTranscript);
-
-          // Simulate AI response
-          setTimeout(async () => {
-            const demoResponse = `You said: "${finalTranscript}". That's great! Let me help you practice more. How about we talk about your daily routine?`;
-
-            await speak(demoResponse, {
-              language: "en-US",
-              rate: 0.9,
-              pitch: 1.0,
-            });
-
-            // After speaking, return to idle
-            setTimeout(() => {
-              if (!isSpeaking) {
-                setVoiceState("idle");
-              }
-            }, 1000);
-          }, 500);
-        } else {
-          Alert.alert("No Speech Detected", "Please try speaking again.");
-          setVoiceState("idle");
-        }
-      } else if (voiceState === "speaking") {
-        // Stop speaking
-        stopSpeaking();
-        setVoiceState("idle");
-      } else if (voiceState === "processing") {
-        // Cancel processing
-        setVoiceState("idle");
-      }
-    } catch (error) {
-      console.error("Error toggling voice state:", error);
-      Alert.alert("Error", "Something went wrong. Please try again.");
+    } else {
       setVoiceState("idle");
     }
   };
@@ -213,8 +114,6 @@ const ChatScreen = () => {
         return "#10b981"; // Green
       case "speaking":
         return "#3b82f6"; // Blue
-      case "processing":
-        return "#f59e0b"; // Orange
       default:
         return colors.tint;
     }
@@ -226,25 +125,8 @@ const ChatScreen = () => {
         return "Listening...";
       case "speaking":
         return "Speaking...";
-      case "processing":
-        return "Processing...";
       default:
         return "Tap to start";
-    }
-  };
-
-  const getSubtitleText = () => {
-    switch (voiceState) {
-      case "idle":
-        return "Practice your English speaking";
-      case "listening":
-        return "I'm listening to you...";
-      case "speaking":
-        return "Listen to my response";
-      case "processing":
-        return "Understanding what you said...";
-      default:
-        return "";
     }
   };
 
@@ -326,23 +208,6 @@ const ChatScreen = () => {
       <Text style={[styles.statusText, { color: colors.text }]}>
         {getStateText()}
       </Text>
-
-      {/* Subtitle */}
-      <Text style={[styles.subtitleText, { color: colors.icon }]}>
-        {getSubtitleText()}
-      </Text>
-
-      {/* Final transcript display */}
-      {userTranscript && voiceState !== "idle" && (
-        <View style={styles.finalTranscriptContainer}>
-          <Text style={[styles.finalTranscriptLabel, { color: colors.icon }]}>
-            You said:
-          </Text>
-          <Text style={[styles.finalTranscriptText, { color: colors.text }]}>
-            &ldquo;{userTranscript}&rdquo;
-          </Text>
-        </View>
-      )}
     </View>
   );
 };
@@ -431,45 +296,6 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     marginHorizontal: 6,
-  },
-  transcriptContainer: {
-    position: "absolute",
-    bottom: 100,
-    backgroundColor: "rgba(16, 185, 129, 0.1)",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 16,
-    maxWidth: "90%",
-    borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.3)",
-  },
-  transcriptText: {
-    fontSize: 16,
-    fontWeight: "500",
-    textAlign: "center",
-  },
-  finalTranscriptContainer: {
-    position: "absolute",
-    bottom: 100,
-    backgroundColor: "rgba(59, 130, 246, 0.1)",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 16,
-    maxWidth: "90%",
-    borderWidth: 1,
-    borderColor: "rgba(59, 130, 246, 0.3)",
-  },
-  finalTranscriptLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    marginBottom: 4,
-    textAlign: "center",
-  },
-  finalTranscriptText: {
-    fontSize: 16,
-    fontWeight: "500",
-    textAlign: "center",
-    fontStyle: "italic",
   },
 });
 
