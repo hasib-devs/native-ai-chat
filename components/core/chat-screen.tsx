@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   Button,
   Easing,
@@ -11,7 +12,11 @@ import {
 } from "react-native";
 
 import { getStateColor, getStateText } from "@/constants/chat.constants";
-import { AudioContext, AudioRecorder } from "react-native-audio-api";
+import {
+  AudioContext,
+  AudioRecorder,
+  AudioManager,
+} from "react-native-audio-api";
 import { Colors } from "../../constants/theme";
 
 type VoiceState = "idle" | "listening" | "speaking";
@@ -111,6 +116,45 @@ const ChatScreen = () => {
     }
   };
 
+  useEffect(() => {
+    // enabling emission of events
+    AudioManager.enableRemoteCommand("remotePlay", true);
+    AudioManager.enableRemoteCommand("remotePause", true);
+    AudioManager.observeAudioInterruptions(true);
+
+    // callback to be invoked on 'remotePlay' event
+    const remotePlaySubscription = AudioManager.addSystemEventListener(
+      "remotePlay",
+      (event) => {
+        console.log("remotePlay event:", event);
+      }
+    );
+
+    // callback to be invoked on 'remotePause' event
+    const remotePauseSubscription = AudioManager.addSystemEventListener(
+      "remotePause",
+      (event) => {
+        console.log("remotePause event:", event);
+      }
+    );
+
+    // callback to be invoked on 'interruption' event
+    const interruptionSubscription = AudioManager.addSystemEventListener(
+      "interruption",
+      (event) => {
+        console.log("Interruption event:", event);
+      }
+    );
+
+    AudioManager.getDevicesInfo().then(console.log);
+
+    return () => {
+      remotePlaySubscription?.remove();
+      remotePauseSubscription?.remove();
+      interruptionSubscription?.remove();
+    };
+  }, []);
+
   const handlePlay = async () => {
     const audioContext = new AudioContext();
 
@@ -128,11 +172,43 @@ const ChatScreen = () => {
     playerNode.stop(audioContext.currentTime + 10);
   };
 
-  const handleRecord = () => {
+  const handleRecord = async () => {
     try {
+      const permissionStatus = await AudioManager.requestRecordingPermissions();
+
+      if (
+        permissionStatus === "Denied" ||
+        permissionStatus === "Undetermined"
+      ) {
+        const newPermissionStatus =
+          await AudioManager.requestRecordingPermissions();
+        if (newPermissionStatus === "Denied") {
+          Alert.alert(
+            "Recording Permission Denied",
+            "Please enable microphone access in your device settings."
+          );
+          return;
+        }
+      }
+      AudioManager.setAudioSessionOptions({
+        iosCategory: "playback",
+        iosMode: "default",
+        iosOptions: [
+          "interruptSpokenAudioAndMixWithOthers",
+          "allowBluetooth",
+
+          "allowBluetoothA2DP",
+        ],
+      });
+
+      console.log(
+        "Recording Permissions: ",
+        await AudioManager.checkRecordingPermissions()
+      );
+
       const recorder = new AudioRecorder({
-        sampleRate: 16000,
-        bufferLengthInSamples: 16000,
+        sampleRate: AudioManager.getDevicePreferredSampleRate(),
+        bufferLengthInSamples: AudioManager.getDevicePreferredSampleRate(),
       });
 
       recorder.onAudioReady((event) => {
@@ -147,6 +223,12 @@ const ChatScreen = () => {
       });
 
       recorder.start();
+
+      // Stop recording after 5 seconds for demo purposes
+      setTimeout(() => {
+        recorder.stop();
+        console.log("Recording stopped.");
+      }, 5000);
     } catch {
       console.log("Failed to start recorder");
     }
