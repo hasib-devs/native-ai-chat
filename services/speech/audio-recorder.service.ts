@@ -180,4 +180,3 @@ class AudioRecorderService {
 
 // Export singleton instance
 export const audioRecorderService = new AudioRecorderService();
-export default audioRecorderService;

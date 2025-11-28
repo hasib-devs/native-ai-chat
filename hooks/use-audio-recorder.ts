@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from "react";
-import audioRecorderService from "../services/speech/audio-recorder.service";
+import { useCallback, useEffect, useState } from "react";
+import { audioRecorderService } from "../services/speech/audio-recorder.service";
 
 interface UseAudioRecorderReturn {
   isRecording: boolean;

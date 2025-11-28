@@ -7,17 +7,31 @@ import {
   TouchableOpacity,
   useColorScheme,
   View,
+  Alert,
 } from "react-native";
 
 import { Colors } from "../../constants/theme";
+import { useTextToSpeech } from "../../hooks/use-text-to-speech";
+import { useAudioRecorder } from "../../hooks/use-audio-recorder";
 
-type VoiceState = "idle" | "listening" | "speaking";
+type VoiceState = "idle" | "listening" | "speaking" | "processing";
 
 const ChatScreen = () => {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
 
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
+
+  // Voice hooks
+  const { speak, isSpeaking, stop: stopSpeaking } = useTextToSpeech();
+  const {
+    startRecording,
+    stopRecording,
+    isRecording,
+    audioLevel,
+    hasPermission,
+    requestPermissions,
+  } = useAudioRecorder();
 
   //  Animation values
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -100,10 +114,89 @@ const ChatScreen = () => {
     outputRange: ["0deg", "360deg"],
   });
 
-  const toggleVoiceState = () => {
-    if (voiceState === "idle") {
+  // Check permissions on mount
+  useEffect(() => {
+    if (!hasPermission) {
+      requestPermissions();
+    }
+  }, [hasPermission]);
+
+  // Update voice state based on hooks
+  useEffect(() => {
+    if (isRecording) {
       setVoiceState("listening");
-    } else {
+    } else if (isSpeaking) {
+      setVoiceState("speaking");
+    }
+  }, [isRecording, isSpeaking]);
+
+  // Update waveform based on actual audio level
+  useEffect(() => {
+    if (isRecording && audioLevel > 0) {
+      // Animate waveforms based on real audio level
+      waveAnimations.forEach((anim) => {
+        Animated.timing(anim, {
+          toValue: 0.3 + audioLevel * 0.7,
+          duration: 100,
+          useNativeDriver: true,
+        }).start();
+      });
+    }
+  }, [audioLevel, isRecording]);
+
+  const toggleVoiceState = async () => {
+    try {
+      if (voiceState === "idle") {
+        // Start listening
+        if (!hasPermission) {
+          const granted = await requestPermissions();
+          if (!granted) {
+            Alert.alert(
+              "Permission Required",
+              "Microphone permission is needed for voice chat."
+            );
+            return;
+          }
+        }
+        await startRecording();
+      } else if (voiceState === "listening") {
+        // Stop listening and process
+        const audioUri = await stopRecording();
+
+        if (audioUri) {
+          setVoiceState("processing");
+
+          // TODO: Send to speech-to-text service
+          // For now, simulate with a demo response
+          setTimeout(async () => {
+            const demoResponse =
+              "Great job! I heard you speaking. Let me respond: Hello! How can I help you practice English today?";
+
+            await speak(demoResponse, {
+              language: "en-US",
+              rate: 0.9,
+              pitch: 1.0,
+            });
+
+            // After speaking, return to idle
+            setTimeout(() => {
+              if (!isSpeaking) {
+                setVoiceState("idle");
+              }
+            }, 1000);
+          }, 500);
+        }
+      } else if (voiceState === "speaking") {
+        // Stop speaking
+        stopSpeaking();
+        setVoiceState("idle");
+      } else if (voiceState === "processing") {
+        // Cancel processing
+        setVoiceState("idle");
+      }
+    } catch (error) {
+      console.error("Error toggling voice state:", error);
+      Alert.alert("Error", "Something went wrong. Please try again.");
       setVoiceState("idle");
     }
   };
@@ -114,6 +207,8 @@ const ChatScreen = () => {
         return "#10b981"; // Green
       case "speaking":
         return "#3b82f6"; // Blue
+      case "processing":
+        return "#f59e0b"; // Orange
       default:
         return colors.tint;
     }
@@ -125,8 +220,25 @@ const ChatScreen = () => {
         return "Listening...";
       case "speaking":
         return "Speaking...";
+      case "processing":
+        return "Processing...";
       default:
         return "Tap to start";
+    }
+  };
+
+  const getSubtitleText = () => {
+    switch (voiceState) {
+      case "idle":
+        return "Practice your English speaking";
+      case "listening":
+        return "I'm listening to you...";
+      case "speaking":
+        return "Listen to my response";
+      case "processing":
+        return "Understanding what you said...";
+      default:
+        return "";
     }
   };
 
@@ -208,6 +320,20 @@ const ChatScreen = () => {
       <Text style={[styles.statusText, { color: colors.text }]}>
         {getStateText()}
       </Text>
+
+      {/* Subtitle */}
+      <Text style={[styles.subtitleText, { color: colors.icon }]}>
+        {getSubtitleText()}
+      </Text>
+
+      {/* Audio level indicator (debug) */}
+      {isRecording && (
+        <View style={styles.debugContainer}>
+          <Text style={[styles.debugText, { color: colors.icon }]}>
+            Audio Level: {(audioLevel * 100).toFixed(0)}%
+          </Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -296,6 +422,18 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     marginHorizontal: 6,
+  },
+  debugContainer: {
+    position: "absolute",
+    bottom: 40,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  debugText: {
+    fontSize: 12,
+    fontWeight: "500",
   },
 });
 
