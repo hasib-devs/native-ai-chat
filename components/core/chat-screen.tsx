@@ -17,7 +17,7 @@ const ChatScreen = () => {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
 
-  const [voiceState, setVoiceState] = useState<VoiceState>("listening");
+  const [voiceState, setVoiceState] = useState<VoiceState>("idle");
 
   //  Animation values
   const pulseAnim = useRef(new Animated.Value(1)).current;
