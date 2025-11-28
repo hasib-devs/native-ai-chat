@@ -3,7 +3,7 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "watchman watch-del . && expo start",
+    "start": "watchman watch-del . && expo start -c",
     "android": "watchman watch-del . && expo run:android",
     "ios": "watchman watch-del . && expo run:ios",
     "lint": "expo lint",
@@ -36,6 +36,7 @@
     "expo-web-browser": "~15.0.8",
     "react": "19.1.0",
     "react-native": "0.81.5",
+    "react-native-audio-api": "^0.10.1",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.0",
