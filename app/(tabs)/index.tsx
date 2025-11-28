@@ -1,6 +1,7 @@
 import ChatScreen from "@/components/core/chat-screen";
 import { ThemedView } from "@/components/themed-view";
 import { StyleSheet } from "react-native";
+import React from "react";
 
 export default function ChatRoot() {
   return (
