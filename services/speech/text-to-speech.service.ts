@@ -8,15 +8,12 @@ import { TextToSpeechOptions } from "../../types/voice.types";
 class TextToSpeechService {
   private isSpeakingNow = false;
   private currentUtterance: string | null = null;
-  private queue: Array<{ text: string; options?: TextToSpeechOptions }> = [];
+  private queue: { text: string; options?: TextToSpeechOptions }[] = [];
 
   /**
    * Speak the given text
    */
-  async speak(
-    text: string,
-    options?: TextToSpeechOptions
-  ): Promise<void> {
+  async speak(text: string, options?: TextToSpeechOptions): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!text || text.trim().length === 0) {
         reject(new Error("Text cannot be empty"));
@@ -31,7 +28,7 @@ class TextToSpeechService {
         pitch: options?.pitch || 1.0,
         rate: options?.rate || 1.0,
         volume: options?.volume || 1.0,
-        voice: options?.voiceId,
+        voice: options?.voice,
         onDone: () => {
           this.isSpeakingNow = false;
           this.currentUtterance = null;
