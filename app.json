@@ -11,10 +11,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "dev.hasib.nativeaichat",
-      "infoPlist": {
-        "NSMicrophoneUsageDescription": "$(PRODUCT_NAME) needs access to your microphone to enable voice conversations and help you practice speaking English.",
-        "NSSpeechRecognitionUsageDescription": "$(PRODUCT_NAME) uses speech recognition to transcribe your voice and provide real-time conversation practice."
-      }
+      // "infoPlist": {
+      //   "NSMicrophoneUsageDescription": "$(PRODUCT_NAME) needs access to your microphone to enable voice conversations and help you practice speaking English.",
+      //   "NSSpeechRecognitionUsageDescription": "$(PRODUCT_NAME) uses speech recognition to transcribe your voice and provide real-time conversation practice."
+      // }
     },
     "android": {
       "adaptiveIcon": {
@@ -25,10 +25,10 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
-      ],
+      // "permissions": [
+      //   "android.permission.RECORD_AUDIO",
+      //   "android.permission.MODIFY_AUDIO_SETTINGS"
+      // ],
       "package": "dev.hasib.nativeaichat"
     },
     "web": {
@@ -37,12 +37,6 @@
     },
     "plugins": [
       "expo-router",
-      [
-        "expo-audio",
-        {
-          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for voice conversations and English practice."
-        }
-      ],
       [
         "expo-splash-screen",
         {
