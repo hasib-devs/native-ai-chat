@@ -12,8 +12,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "dev.hasib.nativeaichat",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Native AI Chat needs access to your microphone to enable voice conversations and help you practice speaking English.",
-        "NSSpeechRecognitionUsageDescription": "Native AI Chat uses speech recognition to transcribe your voice and provide real-time conversation practice."
+        "NSMicrophoneUsageDescription": "$(PRODUCT_NAME) needs access to your microphone to enable voice conversations and help you practice speaking English.",
+        "NSSpeechRecognitionUsageDescription": "$(PRODUCT_NAME) uses speech recognition to transcribe your voice and provide real-time conversation practice."
       }
     },
     "android": {
@@ -37,7 +37,13 @@
     },
     "plugins": [
       "expo-router",
-      "@react-native-voice/voice",
+      [
+        "@react-native-voice/voice",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for voice conversations and English practice.",
+          "speechRecognitionPermission": "Allow $(PRODUCT_NAME) to securely recognize user speech for real-time conversation practice."
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -53,7 +59,7 @@
       [
         "expo-av",
         {
-          "microphonePermission": "Allow Native AI Chat to access your microphone for voice conversations and English practice."
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for voice conversations and English practice."
         }
       ]
     ],
