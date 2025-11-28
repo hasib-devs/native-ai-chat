@@ -49,40 +49,46 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
 
   // Setup event listeners
   useEffect(() => {
-    speechToTextService.onPartialResult((text) => {
-      if (isMounted.current) {
-        setPartialTranscript(text);
-      }
-    });
+    // Add a small delay to ensure native modules are fully initialized
+    const setupListeners = () => {
+      speechToTextService.onPartialResult((text) => {
+        if (isMounted.current) {
+          setPartialTranscript(text);
+        }
+      });
 
-    speechToTextService.onFinalResult((text) => {
-      if (isMounted.current) {
-        setTranscript(text);
-        setPartialTranscript("");
-      }
-    });
+      speechToTextService.onFinalResult((text) => {
+        if (isMounted.current) {
+          setTranscript(text);
+          setPartialTranscript("");
+        }
+      });
 
-    speechToTextService.onError((errorMessage) => {
-      if (isMounted.current) {
-        setError(errorMessage);
-        setIsListening(false);
-      }
-    });
+      speechToTextService.onError((errorMessage) => {
+        if (isMounted.current) {
+          setError(errorMessage);
+          setIsListening(false);
+        }
+      });
 
-    speechToTextService.onStart(() => {
-      if (isMounted.current) {
-        setIsListening(true);
-        setError(null);
-      }
-    });
+      speechToTextService.onStart(() => {
+        if (isMounted.current) {
+          setIsListening(true);
+          setError(null);
+        }
+      });
 
-    speechToTextService.onEnd(() => {
-      if (isMounted.current) {
-        setIsListening(false);
-      }
-    });
+      speechToTextService.onEnd(() => {
+        if (isMounted.current) {
+          setIsListening(false);
+        }
+      });
+    };
+
+    const timer = setTimeout(setupListeners, 100);
 
     return () => {
+      clearTimeout(timer);
       speechToTextService.destroy();
     };
   }, []);

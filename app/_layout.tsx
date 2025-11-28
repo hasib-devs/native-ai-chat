@@ -1,3 +1,5 @@
+import "react-native-gesture-handler";
+import "react-native-reanimated";
 import {
   DarkTheme,
   DefaultTheme,
@@ -5,9 +7,8 @@ import {
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React from "react";
-import { useColorScheme } from "react-native";
-import "react-native-reanimated";
+import React, { useEffect } from "react";
+import { useColorScheme, LogBox } from "react-native";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -15,6 +16,13 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    // Ignore specific warnings during development
+    LogBox.ignoreLogs([
+      "Failed to call into JavaScript module method RCTEventEmitter",
+    ]);
+  }, []);
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
