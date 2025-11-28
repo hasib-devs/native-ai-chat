@@ -12,7 +12,7 @@ import {
 
 import { Colors } from "../../constants/theme";
 import { useTextToSpeech } from "../../hooks/use-text-to-speech";
-import { useAudioRecorder } from "../../hooks/use-audio-recorder";
+import { useSpeechRecognition } from "../../hooks/use-speech-recognition";
 
 type VoiceState = "idle" | "listening" | "speaking" | "processing";
 
@@ -21,17 +21,19 @@ const ChatScreen = () => {
   const colors = Colors[colorScheme ?? "light"];
 
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
+  const [userTranscript, setUserTranscript] = useState("");
 
   // Voice hooks
   const { speak, isSpeaking, stop: stopSpeaking } = useTextToSpeech();
   const {
-    startRecording,
-    stopRecording,
-    isRecording,
-    audioLevel,
-    hasPermission,
-    requestPermissions,
-  } = useAudioRecorder();
+    startListening,
+    stopListening,
+    isListening,
+    transcript,
+    partialTranscript,
+    error: speechError,
+    isAvailable: speechAvailable,
+  } = useSpeechRecognition();
 
   //  Animation values
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -114,63 +116,66 @@ const ChatScreen = () => {
     outputRange: ["0deg", "360deg"],
   });
 
-  // Check permissions on mount
+  // Check speech recognition availability
   useEffect(() => {
-    if (!hasPermission) {
-      requestPermissions();
+    if (!speechAvailable) {
+      Alert.alert(
+        "Speech Recognition Unavailable",
+        "Speech recognition is not available on this device."
+      );
     }
-  }, [hasPermission]);
+  }, [speechAvailable]);
 
   // Update voice state based on hooks
   useEffect(() => {
-    if (isRecording) {
+    if (isListening) {
       setVoiceState("listening");
     } else if (isSpeaking) {
       setVoiceState("speaking");
     }
-  }, [isRecording, isSpeaking]);
+  }, [isListening, isSpeaking]);
 
-  // Update waveform based on actual audio level
+  // Update user transcript when speech recognition completes
   useEffect(() => {
-    if (isRecording && audioLevel > 0) {
-      // Animate waveforms based on real audio level
-      waveAnimations.forEach((anim) => {
-        Animated.timing(anim, {
-          toValue: 0.3 + audioLevel * 0.7,
-          duration: 100,
-          useNativeDriver: true,
-        }).start();
-      });
+    if (transcript) {
+      setUserTranscript(transcript);
     }
-  }, [audioLevel, isRecording]);
+  }, [transcript]);
+
+  // Show errors
+  useEffect(() => {
+    if (speechError) {
+      console.error("Speech error:", speechError);
+    }
+  }, [speechError]);
 
   const toggleVoiceState = async () => {
     try {
       if (voiceState === "idle") {
-        // Start listening
-        if (!hasPermission) {
-          const granted = await requestPermissions();
-          if (!granted) {
-            Alert.alert(
-              "Permission Required",
-              "Microphone permission is needed for voice chat."
-            );
-            return;
-          }
+        // Start listening with speech recognition
+        if (!speechAvailable) {
+          Alert.alert(
+            "Not Available",
+            "Speech recognition is not available on this device."
+          );
+          return;
         }
-        await startRecording();
+
+        await startListening({
+          language: "en-US",
+          interimResults: true,
+        });
       } else if (voiceState === "listening") {
-        // Stop listening and process
-        const audioUri = await stopRecording();
+        // Stop listening and get transcript
+        const finalTranscript = await stopListening();
 
-        if (audioUri) {
+        if (finalTranscript && finalTranscript.trim()) {
           setVoiceState("processing");
+          setUserTranscript(finalTranscript);
 
-          // TODO: Send to speech-to-text service
-          // For now, simulate with a demo response
+          // Simulate AI response
           setTimeout(async () => {
-            const demoResponse =
-              "Great job! I heard you speaking. Let me respond: Hello! How can I help you practice English today?";
+            const demoResponse = `You said: "${finalTranscript}". That's great! Let me help you practice more. How about we talk about your daily routine?`;
 
             await speak(demoResponse, {
               language: "en-US",
@@ -185,6 +190,9 @@ const ChatScreen = () => {
               }
             }, 1000);
           }, 500);
+        } else {
+          Alert.alert("No Speech Detected", "Please try speaking again.");
+          setVoiceState("idle");
         }
       } else if (voiceState === "speaking") {
         // Stop speaking
@@ -326,11 +334,23 @@ const ChatScreen = () => {
         {getSubtitleText()}
       </Text>
 
-      {/* Audio level indicator (debug) */}
-      {isRecording && (
-        <View style={styles.debugContainer}>
-          <Text style={[styles.debugText, { color: colors.icon }]}>
-            Audio Level: {(audioLevel * 100).toFixed(0)}%
+      {/* Real-time transcript display */}
+      {partialTranscript && voiceState === "listening" && (
+        <View style={styles.transcriptContainer}>
+          <Text style={[styles.transcriptText, { color: colors.text }]}>
+            {partialTranscript}
+          </Text>
+        </View>
+      )}
+
+      {/* Final transcript display */}
+      {userTranscript && voiceState !== "idle" && (
+        <View style={styles.finalTranscriptContainer}>
+          <Text style={[styles.finalTranscriptLabel, { color: colors.icon }]}>
+            You said:
+          </Text>
+          <Text style={[styles.finalTranscriptText, { color: colors.text }]}>
+            &ldquo;{userTranscript}&rdquo;
           </Text>
         </View>
       )}
@@ -423,17 +443,44 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginHorizontal: 6,
   },
-  debugContainer: {
+  transcriptContainer: {
     position: "absolute",
-    bottom: 40,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    bottom: 100,
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 16,
+    maxWidth: "90%",
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.3)",
   },
-  debugText: {
-    fontSize: 12,
+  transcriptText: {
+    fontSize: 16,
     fontWeight: "500",
+    textAlign: "center",
+  },
+  finalTranscriptContainer: {
+    position: "absolute",
+    bottom: 100,
+    backgroundColor: "rgba(59, 130, 246, 0.1)",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 16,
+    maxWidth: "90%",
+    borderWidth: 1,
+    borderColor: "rgba(59, 130, 246, 0.3)",
+  },
+  finalTranscriptLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  finalTranscriptText: {
+    fontSize: 16,
+    fontWeight: "500",
+    textAlign: "center",
+    fontStyle: "italic",
   },
 });
 
