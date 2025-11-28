@@ -54,6 +54,13 @@
         {
           "microphonePermission": "Allow Native AI Chat to access your microphone for voice conversations and English practice."
         }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone.",
+          "recordAudioAndroid": true
+        }
       ]
     ],
     "experiments": {
