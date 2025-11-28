@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Button,
   Easing,
   StyleSheet,
   Text,
@@ -9,8 +10,9 @@ import {
   View,
 } from "react-native";
 
-import { Colors } from "../../constants/theme";
 import { getStateColor, getStateText } from "@/constants/chat.constants";
+import { AudioContext, AudioRecorder } from "react-native-audio-api";
+import { Colors } from "../../constants/theme";
 
 type VoiceState = "idle" | "listening" | "speaking";
 
@@ -109,10 +111,49 @@ const ChatScreen = () => {
     }
   };
 
+  const handlePlay = async () => {
+    const audioContext = new AudioContext();
+
+    const audioBuffer = await fetch(
+      "https://software-mansion.github.io/react-native-audio-api/audio/music/example-music-01.mp3"
+    )
+      .then((response) => response.arrayBuffer())
+      .then((arrayBuffer) => audioContext.decodeAudioData(arrayBuffer));
+
+    const playerNode = audioContext.createBufferSource();
+    playerNode.buffer = audioBuffer;
+
+    playerNode.connect(audioContext.destination);
+    playerNode.start(audioContext.currentTime);
+    playerNode.stop(audioContext.currentTime + 10);
+  };
+
+  const handleRecord = () => {
+    const recorder = new AudioRecorder({
+      sampleRate: 16000,
+      bufferLengthInSamples: 16000,
+    });
+
+    recorder.onAudioReady((event) => {
+      const { buffer, numFrames, when } = event;
+
+      console.log(
+        "Audio recorder buffer ready:",
+        buffer.duration,
+        numFrames,
+        when
+      );
+    });
+
+    recorder.start();
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Main orb container */}
       <View style={styles.orbContainer}>
+        <Button onPress={handlePlay} title="Play sound!" />
+        <Button onPress={handleRecord} title="Start Record" />
         {/* Rotating outer ring for listening state */}
         {voiceState === "listening" && (
           <Animated.View

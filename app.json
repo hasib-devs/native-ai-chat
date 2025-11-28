@@ -9,10 +9,15 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "bundleIdentifier": "dev.hasib.nativeaichat",
       "supportsTablet": true,
-      "bundleIdentifier": "dev.hasib.nativeaichat"
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "$(PRODUCT_NAME) needs access to your microphone to enable voice conversations and help you practice speaking English.",
+        "NSSpeechRecognitionUsageDescription": "$(PRODUCT_NAME) uses speech recognition to transcribe your voice and provide real-time conversation practice."
+      }
     },
     "android": {
+      "package": "dev.hasib.nativeaichat",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -20,8 +25,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "dev.hasib.nativeaichat"
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
@@ -49,7 +53,9 @@
           "androidPermissions": [
             "android.permission.MODIFY_AUDIO_SETTINGS",
             "android.permission.FOREGROUND_SERVICE",
-            "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+            "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+            "android.permission.RECORD_AUDIO",
+            "android.permission.MODIFY_AUDIO_SETTINGS"
           ],
           "androidForegroundService": true,
           "androidFSTypes": [
