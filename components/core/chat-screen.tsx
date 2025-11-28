@@ -10,6 +10,7 @@ import {
 } from "react-native";
 
 import { Colors } from "../../constants/theme";
+import { getStateColor, getStateText } from "@/constants/chat.constants";
 
 type VoiceState = "idle" | "listening" | "speaking";
 
@@ -108,28 +109,6 @@ const ChatScreen = () => {
     }
   };
 
-  const getStateColor = () => {
-    switch (voiceState) {
-      case "listening":
-        return "#10b981"; // Green
-      case "speaking":
-        return "#3b82f6"; // Blue
-      default:
-        return colors.tint;
-    }
-  };
-
-  const getStateText = () => {
-    switch (voiceState) {
-      case "listening":
-        return "Listening...";
-      case "speaking":
-        return "Speaking...";
-      default:
-        return "Tap to start";
-    }
-  };
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Main orb container */}
@@ -140,19 +119,28 @@ const ChatScreen = () => {
             style={[
               styles.rotatingRing,
               {
-                borderColor: getStateColor(),
+                borderColor: getStateColor(voiceState),
                 transform: [{ rotate: rotation }],
               },
             ]}
           >
             <View
-              style={[styles.ringDot, { backgroundColor: getStateColor() }]}
+              style={[
+                styles.ringDot,
+                { backgroundColor: getStateColor(voiceState) },
+              ]}
             />
             <View
-              style={[styles.ringDot, { backgroundColor: getStateColor() }]}
+              style={[
+                styles.ringDot,
+                { backgroundColor: getStateColor(voiceState) },
+              ]}
             />
             <View
-              style={[styles.ringDot, { backgroundColor: getStateColor() }]}
+              style={[
+                styles.ringDot,
+                { backgroundColor: getStateColor(voiceState) },
+              ]}
             />
           </Animated.View>
         )}
@@ -163,7 +151,7 @@ const ChatScreen = () => {
             style={[
               styles.orb,
               {
-                backgroundColor: getStateColor(),
+                backgroundColor: getStateColor(voiceState),
                 transform: [{ scale: pulseAnim }],
               },
             ]}
@@ -206,7 +194,7 @@ const ChatScreen = () => {
 
       {/* Status text */}
       <Text style={[styles.statusText, { color: colors.text }]}>
-        {getStateText()}
+        {getStateText(voiceState)}
       </Text>
     </View>
   );

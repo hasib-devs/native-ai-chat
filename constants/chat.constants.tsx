@@ -9,7 +9,7 @@ export const getStateColor = (voiceState: VoiceState) => {
     case "processing":
       return "#f59e0b"; // Orange
     default:
-      return "#6b7280"; // Gray
+      return "#0a7ea4"; // Default tint color
   }
 };
 
