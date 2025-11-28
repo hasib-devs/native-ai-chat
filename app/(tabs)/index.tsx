@@ -1,3 +1,4 @@
+import ChatScreen from "@/components/core/chat-screen";
 import { ThemedView } from "@/components/themed-view";
 import React, { Component, ErrorInfo, ReactNode } from "react";
 import { StyleSheet, Text } from "react-native";
@@ -43,10 +44,10 @@ export default function ChatRoot() {
   return (
     <ErrorBoundary>
       <ThemedView style={styles.container}>
-        {/* <ChatScreen /> */}
-        <Text>
+        <ChatScreen />
+        {/* <Text>
           ChatScreen is currently disabled for demonstration purposes.
-        </Text>
+        </Text> */}
       </ThemedView>
     </ErrorBoundary>
   );
